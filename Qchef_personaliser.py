@@ -8,7 +8,7 @@ from keras.backend import round as keras_round
 
 import numpy as np
 
-ids_row_id = 0
+ids_row_id = [0,1]
 ys_row_id = 1
 simple_xs_row_ids = [1]
 neural_xs_row_ids = [1,2,3]
@@ -36,7 +36,10 @@ def processData(file,mode):
 	with open(file, "rb") as in_f:
 		reader = csv.reader(in_f)
 		data = [row for row in reader]
-		ids = [row[ids_row_id] for row in data]
+		if type(ids_row_id) is list and len(ids_row_id) > 1:
+			ids = ["".join([row[i] for i in ids_row_id]) for row in data]
+		else:
+			ids = [row[ids_row_id] for row in data]
 		ys = [int(row[ys_row_id]) for row in data]
 		if mode == "simple":
 			xs = [[float(row[id]) for id in simple_xs_row_ids] for row in data]
