@@ -40,6 +40,22 @@ def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	predictor_recall_fscore = precision_recall_fscore_support(test_raw_ys, final_class_predictions, average='macro')
 	print 'predictor_recall_fscore', predictor_recall_fscore
 
+def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
+	predictor = RandomForestRegressor()
+	predictor.fit(train_xset, train_raw_ys)
+	predictor_accuracy = predictor.score(test_xset, test_raw_ys)
+	print 'Predictor accuracy:', predictor_accuracy
+	test_pred = predictor.predict(test_xset)
+	# print 'Predictions:', test_pred
+	test_pred = test_pred * 5
+	test_pred_rounded = np.around(test_pred)
+	test_raw_ys = test_raw_ys * 5
+	print 'rounding the predictions:', len(test_pred_rounded), set(test_pred_rounded), test_pred_rounded
+	predictor_accuracy, predictor_accuracy_norm = accuracy_score(test_raw_ys, test_pred_rounded, normalize=False), accuracy_score(test_raw_ys, test_pred_rounded)
+	print 'predictor_accuracy', predictor_accuracy, predictor_accuracy_norm * 100, '%'
+	predictor_recall_fscore = precision_recall_fscore_support(test_raw_ys, test_pred_rounded, average='macro')
+	print 'predictor_recall_fscore', predictor_recall_fscore
+
 def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Initialize a sequential model
 	model = Sequential()
