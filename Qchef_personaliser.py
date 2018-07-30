@@ -1,6 +1,6 @@
 # ToDo: Compare between the models in terms of the accuracy and MSE
+	# ToDo: Try softmax layer with number of nodes == number of classes
 # ToDo: Test using different features
-# ToDo: Try softmax layer with number of nodes == number of classes
 
 import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -233,9 +233,9 @@ if __name__ == '__main__':
 				final_class_predictions += class_predictions_dict[each_class]
 			# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
 			# Calculate accuracy
-			model_accuracy, model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
-			print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
+			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
 			holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
 			print 'Models mean_squared_error:', holdout_model_accuracy
-			model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
-			print 'Using precision_recall_fscore_support:', model_recall_fscore
+			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
+			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
