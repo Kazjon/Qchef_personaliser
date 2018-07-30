@@ -1,17 +1,15 @@
-# ToDo: Divide the dataset into cross-validation dataset (80%) and test-holdout (20%)
-# ToDo: Test the 3 models on the hold-out
-# ToDo: The output will be in percentage accuracy but also most importantly mean-squared error (MSE)
 # ToDo: Compare between the models in terms of the accuracy and MSE
-# ToDo: Try taking out some features instead of using all of them
+# ToDo: Test using different features
+# ToDo: Try softmax layer with number of nodes == number of classes
 
 import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, mean_squared_error, precision_recall_fscore_support
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers.merge import Concatenate
-from keras.losses import mean_squared_error
+from keras.losses import mean_squared_error as keras_mean_squared_error
 from keras.backend import round as keras_round
 from user_input_training.survey_reader import survey_reader
 
@@ -25,13 +23,14 @@ def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	# test_ys_list = [[int(y > (i+1) / 5.0) for y in test_raw_ys] for i in range(4)]
 	class_predictions_dict = {}
 	models_dict = {}
+	print 'Cross-validation evaluation:'
 	# Iterate over the 4 models and fit them to training then test them
 	for class_idx, (model, train_yset, test_yset) in enumerate(zip(models_list, train_ys_list, test_ys_list)):
 		# Fit the model
 		models_dict[class_idx] = model.fit(train_xset, train_yset)
 		# Evaluate the model
 		model_score = model.score(test_xset, test_yset)
-		print 'models accuracy of class > ', class_idx + 1, ':', model_score
+		print 'model.score for class > ', class_idx + 1, ':', model_score
 		class_prediction = model.predict(test_xset)
 		# print 'Predictions of class > ', class_idx + 1, ':', class_prediction
 		# Store class prediction
@@ -43,26 +42,26 @@ def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
 	# Calculate accuracy
 	model_accuracy, model_accuracy_norm = accuracy_score(test_raw_ys, final_class_predictions, normalize=False), accuracy_score(test_raw_ys, final_class_predictions)
-	print 'model_accuracy', model_accuracy, model_accuracy_norm * 100, '%'
+	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_raw_ys, final_class_predictions, average='macro')
-	print 'model_recall_fscore', model_recall_fscore
+	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	return models_dict
 
 def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	model = RandomForestRegressor()
 	model.fit(train_xset, train_raw_ys)
 	model_accuracy = model.score(test_xset, test_raw_ys)
-	print 'model accuracy:', model_accuracy
+	print 'Using model.score', model_accuracy
 	test_pred = model.predict(test_xset)
 	# print 'Predictions:', test_pred
 	test_pred = test_pred * 5
 	test_pred_rounded = np.around(test_pred)
 	test_raw_ys = test_raw_ys * 5
-	print 'rounding the predictions:', len(test_pred_rounded), set(test_pred_rounded), test_pred_rounded
+	# print 'rounding the predictions:', len(test_pred_rounded), set(test_pred_rounded), test_pred_rounded
 	model_accuracy, model_accuracy_norm = accuracy_score(test_raw_ys, test_pred_rounded, normalize=False), accuracy_score(test_raw_ys, test_pred_rounded)
-	print 'model_accuracy', model_accuracy, model_accuracy_norm * 100, '%'
+	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_raw_ys, test_pred_rounded, average='macro')
-	print 'model_recall_fscore', model_recall_fscore
+	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	return model
 
 def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
@@ -77,30 +76,32 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Compile with MSE as the loss measure, use RMSprop as the optimizer
 	model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
 	# Determine the num_epochs and num_batches
-	num_batches = 20
-	num_epochs = 10000
+	num_batches = 5
+	num_epochs = 100
 	batch_size = len(train_xset) / num_batches
 	# Fit the training into the model
 	model.fit(np.array(train_xset, dtype=np.float32), np.array(train_yset, dtype=np.float32), epochs=num_epochs, batch_size=batch_size)
-	# Evaluate the model using the test dataset
-	print 'Evaluation:'
+	# Evaluate the model
+	print 'Cross-validation evaluation:'
 	model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_yset, dtype=np.float32))
 	# model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_raw_ys, dtype=np.float32))
 	# Predict the output of the test dataset
-	test_pred = model.predict(np.array(test_xset, dtype=np.float32), batch_size=len(test_xset))
+	batch_size = len(test_xset) / num_batches
+	test_pred = model.predict(np.array(test_xset, dtype=np.float32), batch_size=batch_size)
 	# print 'test_pred', type(test_pred), test_pred
 	test_pred_rounded = np.around(test_pred)
 	# print 'rounding the predictions:', set(test_pred_rounded.flat), test_pred_rounded
 	model_accuracy, model_accuracy_norm = accuracy_score(test_yset, test_pred_rounded, normalize=False), accuracy_score(test_yset, test_pred_rounded)
-	print 'model_accuracy', model_accuracy, model_accuracy_norm * 100, '%'
+	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_yset, test_pred_rounded, average='macro')
-	print 'model_recall_fscore', model_recall_fscore
+	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	return model
 
 if __name__ == '__main__':
 	# Get the argument variables
 	user_input_fn = sys.argv[1]
 	mode = sys.argv[2]
+	print 'Algorithm:', mode
 	# Set the current working dir
 	cwd = os.getcwd()
 	# Get the survey object reader
@@ -155,11 +156,15 @@ if __name__ == '__main__':
 	predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
 	train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
 	test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
+	# print 'test_target_var', test_target_var
 	# Get number of used predictive variables
 	num_predictive_vars = np.shape(predictive_var_arr)[1]
 	print 'Number of predictive variables:', num_predictive_vars
+	print 'Cross-validation:'
 	# Create a K fold separation
 	kf = KFold(n_splits=3)
+	# Initialize dict of predictors to store the predictors of each fold
+	predictors_dict = {}
 	# Iterate over the splits
 	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(predictive_var_arr)):
 		print 'fold_idx', fold_idx
@@ -169,11 +174,68 @@ if __name__ == '__main__':
 		# print 'test_ys', len(test_ys), set(test_ys), test_ys
 		# Choose and build the model
 		if mode == 'RF_classifier':
-			predictor_dict = RF_classifier(train_xs, train_ys, test_xs, test_ys)
-			# for predictor in predictor_dict:
-				# predictor
+			predictors_dict[fold_idx] = RF_classifier(train_xs, train_ys, test_xs, test_ys)
 		elif mode == 'RF_regressor':
-			predictor = RF_regressor(train_xs, train_ys, test_xs, test_ys)
+			predictors_dict[fold_idx] = RF_regressor(train_xs, train_ys, test_xs, test_ys)
 		elif mode == 'neural':
-			predictor = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
+			predictors_dict[fold_idx] = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
 		# break
+	print 'Test predictions on test-holdout:'
+	if mode ==  'RF_regressor':
+		for each_predictor in predictors_dict:
+			print 'each_predictor', each_predictor
+			# Evaluate the model
+			holdout_model_score = predictors_dict[each_predictor].score(test_predictive_var_arr, test_target_var)
+			print 'Models accuracy score:', holdout_model_score * 100, '%'
+			class_predictions = np.array(predictors_dict[each_predictor].predict(test_predictive_var_arr))
+			# print 'Predictions of class:', class_predictions
+			# Calculate accuracy
+			# holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions, normalize=False), accuracy_score(test_target_var, class_predictions)
+			holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
+			print 'Models mean_squared_error:', holdout_model_accuracy
+			# holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions, average='macro')
+			# print 'holdout_model_recall_fscore', holdout_model_recall_fscore
+	elif mode ==  'neural':
+		for each_predictor in predictors_dict:
+			print 'each_predictor', each_predictor
+			# Evaluate the model
+			predictors_dict[each_predictor].evaluate(np.array(test_predictive_var_arr, dtype=np.float32), np.array(test_target_var, dtype=np.float32))
+			# Predict the output of the test dataset
+			holdout_test_pred = predictors_dict[each_predictor].predict(np.array(test_predictive_var_arr, dtype=np.float32), batch_size=len(test_predictive_var_arr))
+			# print 'holdout_test_pred', type(holdout_test_pred), holdout_test_pred
+			holdout_test_pred_rounded = np.around(holdout_test_pred)
+			# print 'rounding the predictions:', set(holdout_test_pred_rounded.flat), holdout_test_pred_rounded
+			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, holdout_test_pred_rounded, normalize=False), accuracy_score(test_target_var, holdout_test_pred_rounded)
+			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+			holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred_rounded)
+			print 'Models mean_squared_error:', holdout_model_accuracy
+			keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred_rounded)
+			print 'Models keras_holdout_model_accuracy:', keras_holdout_model_accuracy
+			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, holdout_test_pred_rounded, average='macro')
+			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
+	elif mode ==  'RF_classifier':
+		for each_models_dict in predictors_dict:
+			print 'models_dict', each_models_dict
+			models_dict = predictors_dict[each_models_dict]
+			class_predictions_dict = {}
+			# Iterate over the 4 models and fit them to training then test them
+			for class_idx in models_dict:
+				# Evaluate the model
+				model_score = models_dict[class_idx].score(test_predictive_var_arr, test_target_var)
+				print 'model.score for class > ', class_idx + 1, ':', model_score
+				class_prediction = models_dict[class_idx].predict(test_predictive_var_arr)
+				# print 'Predictions of class > ', class_idx + 1, ':', class_prediction
+				# Store class prediction
+				class_predictions_dict[class_idx + 1] = class_prediction
+			# Get final class prediction
+			final_class_predictions = [0] * len(class_predictions_dict[1])
+			for each_class in class_predictions_dict:
+				final_class_predictions += class_predictions_dict[each_class]
+			# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
+			# Calculate accuracy
+			model_accuracy, model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
+			print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+			holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
+			print 'Models mean_squared_error:', holdout_model_accuracy
+			model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
+			print 'Using precision_recall_fscore_support:', model_recall_fscore
