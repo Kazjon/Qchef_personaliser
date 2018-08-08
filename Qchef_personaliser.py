@@ -1,11 +1,13 @@
 # ToDo: Compare between the models in terms of the accuracy and MSE
 	# ToDo: Try softmax layer with number of nodes == number of classes
 # ToDo: Test using different features
+# ToDo: Make switching between using the target variable scaled before or after training optinal through arguments
+# ToDo: Make switching between categorical and continuous for the NNW optinal through arguments
 
 import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
-from sklearn.metrics import accuracy_score, mean_squared_error, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers.merge import Concatenate
@@ -55,14 +57,16 @@ def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	print 'Using model.score', model_accuracy
 	test_pred = model.predict(test_xset)
 	# print 'Predictions:', test_pred
-	test_pred = test_pred * 5
+	# test_pred = test_pred * 5
 	test_pred_rounded = np.around(test_pred)
-	test_raw_ys = test_raw_ys * 5
+	# test_raw_ys = test_raw_ys * 5
 	# print 'rounding the predictions:', len(test_pred_rounded), set(test_pred_rounded), test_pred_rounded
 	model_accuracy, model_accuracy_norm = accuracy_score(test_raw_ys, test_pred_rounded, normalize=False), accuracy_score(test_raw_ys, test_pred_rounded)
-	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+	print 'Using rounded for accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+	# model_recall_fscore = precision_recall_fscore_support(test_raw_ys, test_pred, average='macro')
+	# print 'Using precision_recall_fscore_support:', model_recall_fscore
 	model_recall_fscore = precision_recall_fscore_support(test_raw_ys, test_pred_rounded, average='macro')
-	print 'Using precision_recall_fscore_support:', model_recall_fscore
+	print 'Using rounded for precision_recall_fscore_support:', model_recall_fscore
 	return model
 
 def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
@@ -73,28 +77,27 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Add dropout layer
 	model.add(Dropout(0.5))
 	# Add a linear layer
-	# model.add(Dense(1, activation='linear'))
+	model.add(Dense(1, activation='linear'))
 	# Add a softmax layer
-	model.add(Dense(units=6, activation='softmax'))
+	# model.add(Dense(units=6, activation='softmax'))
 	# Compile with MSE as the loss measure, use RMSprop as the optimizer
-	model.compile(optimizer='rmsprop', loss='mse', metrics=['categorical_accuracy'])
-	# model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
+	# model.compile(optimizer='rmsprop', loss='mse', metrics=['categorical_accuracy'])
+	model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
 	# Determine the num_epochs and num_batches
 	num_batches = 5
 	num_epochs = 100
 	batch_size = len(train_xset) / num_batches
 	# Convert labels to categorical one-hot encoding
-	hot_train_yset = to_categorical(np.array(train_yset, dtype=np.float32), num_classes=6)
+	# hot_train_yset = to_categorical(np.array(train_yset, dtype=np.float32), num_classes=6)
 	# Fit the training into the model
-	# model.fit(np.array(train_xset, dtype=np.float32), np.array(train_yset, dtype=np.float32), epochs=num_epochs, batch_size=batch_size)
-	model.fit(np.array(train_xset, dtype=np.float32), hot_train_yset, epochs=num_epochs, batch_size=batch_size)
+	model.fit(np.array(train_xset, dtype=np.float32), np.array(train_yset, dtype=np.float32), epochs=num_epochs, batch_size=batch_size)
+	# model.fit(np.array(train_xset, dtype=np.float32), hot_train_yset, epochs=num_epochs, batch_size=batch_size)
 	# Evaluate the model
 	print 'Cross-validation evaluation:'
 	# Convert labels to categorical one-hot encoding
-	hot_test_yset = to_categorical(np.array(test_yset, dtype=np.float32), num_classes=6)
-	# model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_yset, dtype=np.float32))
-	model.evaluate(np.array(test_xset, dtype=np.float32), hot_test_yset)
-	# model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_raw_ys, dtype=np.float32))
+	# hot_test_yset = to_categorical(np.array(test_yset, dtype=np.float32), num_classes=6)
+	model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_yset, dtype=np.float32))
+	# model.evaluate(np.array(test_xset, dtype=np.float32), hot_test_yset)
 	# Predict the output of the test dataset
 	# batch_size = len(test_xset) / num_batches
 	test_pred = model.predict(np.array(test_xset, dtype=np.float32), batch_size=len(test_xset))
@@ -148,9 +151,9 @@ if __name__ == '__main__':
 		train_target_var = train_target_var.values * 5
 		test_target_var = test_target_var.values * 5
 	elif mode == 'RF_regressor':
-		target_var = target_var.values
-		train_target_var = train_target_var.values
-		test_target_var = test_target_var.values
+		target_var = target_var.values * 5
+		train_target_var = train_target_var.values * 5
+		test_target_var = test_target_var.values * 5
 	elif mode == 'neural':
 		target_var = target_var.values * 5
 		train_target_var = train_target_var.values * 5
@@ -177,11 +180,11 @@ if __name__ == '__main__':
 	# Initialize dict of predictors to store the predictors of each fold
 	predictors_dict = {}
 	# Iterate over the splits
-	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(predictive_var_arr)):
+	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(train_predictive_var_arr)):
 		print 'fold_idx', fold_idx
 		# Split the training from testing using the IDs
-		train_xs, test_xs = predictive_var_arr[train_ids], predictive_var_arr[test_ids]
-		train_ys, test_ys = target_var[train_ids], target_var[test_ids]
+		train_xs, test_xs = train_predictive_var_arr[train_ids], train_predictive_var_arr[test_ids]
+		train_ys, test_ys = train_target_var[train_ids], train_target_var[test_ids]
 		# print 'test_ys', len(test_ys), set(test_ys), test_ys
 		# Choose and build the model
 		if mode == 'RF_classifier':
@@ -199,13 +202,18 @@ if __name__ == '__main__':
 			holdout_model_score = predictors_dict[each_predictor].score(test_predictive_var_arr, test_target_var)
 			print 'Models accuracy score:', holdout_model_score * 100, '%'
 			class_predictions = np.array(predictors_dict[each_predictor].predict(test_predictive_var_arr))
-			# print 'Predictions of class:', class_predictions
+			print 'class_predictions', class_predictions
+			class_predictions_rounded = np.around(class_predictions)
+			print 'class_predictions_rounded', class_predictions_rounded
 			# Calculate accuracy
-			# holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions, normalize=False), accuracy_score(test_target_var, class_predictions)
+			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, rounded_class_predictions)
+			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
 			holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
 			print 'Models mean_squared_error:', holdout_model_accuracy
-			# holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions, average='macro')
-			# print 'holdout_model_recall_fscore', holdout_model_recall_fscore
+			holdout_model_accuracy = mean_absolute_error(test_target_var, class_predictions)
+			print 'Models mean_absolute_error:', holdout_model_accuracy
+			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions_rounded, average='macro')
+			print 'holdout_model_recall_fscore', holdout_model_recall_fscore
 	elif mode ==  'neural':
 		for each_predictor in predictors_dict:
 			print 'each_predictor', each_predictor
@@ -218,9 +226,11 @@ if __name__ == '__main__':
 			# print 'rounding the predictions:', set(holdout_test_pred_rounded.flat), holdout_test_pred_rounded
 			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, holdout_test_pred_rounded, normalize=False), accuracy_score(test_target_var, holdout_test_pred_rounded)
 			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
-			holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred_rounded)
+			holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred)
 			print 'Models mean_squared_error:', holdout_model_accuracy
-			keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred_rounded)
+			holdout_model_accuracy = mean_absolute_error(test_target_var, holdout_test_pred)
+			print 'Models mean_absolute_error:', holdout_model_accuracy
+			keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred)
 			print 'Models keras_holdout_model_accuracy:', keras_holdout_model_accuracy
 			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, holdout_test_pred_rounded, average='macro')
 			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
@@ -248,5 +258,7 @@ if __name__ == '__main__':
 			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
 			holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
 			print 'Models mean_squared_error:', holdout_model_accuracy
+			holdout_model_accuracy = mean_absolute_error(test_target_var, final_class_predictions)
+			print 'Models mean_absolute_error:', holdout_model_accuracy
 			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
 			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
