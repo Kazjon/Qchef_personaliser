@@ -11,6 +11,7 @@ from keras.layers import Dense, Dropout, Activation
 from keras.layers.merge import Concatenate
 from keras.losses import mean_squared_error as keras_mean_squared_error
 from keras.backend import round as keras_round
+from keras.utils import to_categorical
 from user_input_training.survey_reader import survey_reader
 
 def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
@@ -68,29 +69,39 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Initialize a sequential model
 	model = Sequential()
 	# Create a Relu layer with the number of predictive variables
-	model.add(Dense(64, activation='relu', input_dim=num_predictive_vars))
+	model.add(Dense(units=64, activation='relu', input_dim=num_predictive_vars))
 	# Add dropout layer
 	model.add(Dropout(0.5))
 	# Add a linear layer
-	model.add(Dense(1, activation='linear'))
+	# model.add(Dense(1, activation='linear'))
+	# Add a softmax layer
+	model.add(Dense(units=6, activation='softmax'))
 	# Compile with MSE as the loss measure, use RMSprop as the optimizer
-	model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
+	model.compile(optimizer='rmsprop', loss='mse', metrics=['categorical_accuracy'])
+	# model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
 	# Determine the num_epochs and num_batches
 	num_batches = 5
 	num_epochs = 100
 	batch_size = len(train_xset) / num_batches
+	# Convert labels to categorical one-hot encoding
+	hot_train_yset = to_categorical(np.array(train_yset, dtype=np.float32), num_classes=6)
 	# Fit the training into the model
-	model.fit(np.array(train_xset, dtype=np.float32), np.array(train_yset, dtype=np.float32), epochs=num_epochs, batch_size=batch_size)
+	# model.fit(np.array(train_xset, dtype=np.float32), np.array(train_yset, dtype=np.float32), epochs=num_epochs, batch_size=batch_size)
+	model.fit(np.array(train_xset, dtype=np.float32), hot_train_yset, epochs=num_epochs, batch_size=batch_size)
 	# Evaluate the model
 	print 'Cross-validation evaluation:'
-	model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_yset, dtype=np.float32))
+	# Convert labels to categorical one-hot encoding
+	hot_test_yset = to_categorical(np.array(test_yset, dtype=np.float32), num_classes=6)
+	# model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_yset, dtype=np.float32))
+	model.evaluate(np.array(test_xset, dtype=np.float32), hot_test_yset)
 	# model.evaluate(np.array(test_xset, dtype=np.float32), np.array(test_raw_ys, dtype=np.float32))
 	# Predict the output of the test dataset
-	batch_size = len(test_xset) / num_batches
-	test_pred = model.predict(np.array(test_xset, dtype=np.float32), batch_size=batch_size)
+	# batch_size = len(test_xset) / num_batches
+	test_pred = model.predict(np.array(test_xset, dtype=np.float32), batch_size=len(test_xset))
 	# print 'test_pred', type(test_pred), test_pred
 	test_pred_rounded = np.around(test_pred)
 	# print 'rounding the predictions:', set(test_pred_rounded.flat), test_pred_rounded
+	print 'test_yset', test_yset
 	model_accuracy, model_accuracy_norm = accuracy_score(test_yset, test_pred_rounded, normalize=False), accuracy_score(test_yset, test_pred_rounded)
 	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_yset, test_pred_rounded, average='macro')
