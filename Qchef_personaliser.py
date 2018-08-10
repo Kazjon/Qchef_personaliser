@@ -9,7 +9,7 @@ import numpy as np
 ids_row_id = [0,1]
 ys_row_id = 56
 simple_xs_row_ids = range(2,56)
-neural_xs_row_ids = range(2,56)
+neural_xs_row_ids = [1]#range(2,56)
 
 def simpleRatingPredictor(train_ids, train_xs, train_raw_ys, test_ids, test_xs, test_raw_ys):
 	predictors_list = [RandomForestClassifier() for i in range(4)]
@@ -54,9 +54,10 @@ def processData(file,mode):
 
 		ys = [float(row[ys_row_id]) for row in data]
 
+		#Hacky *5 because the simple predictor expects it.
+		ys = [y*5 for y in ys]
+		
 		if mode == "simple":
-			#Hacky *5 because the simple predictor expects it.
-			ys = [y*5 for y in ys]
 			xs = [[float(row[id]) for id in simple_xs_row_ids] for row in data]
 		elif mode == "neural":
 			#Convert 1-5 to -1,0,1 by grouping 1+2 ans 4+5.  This should be probably done by creating an extra 
@@ -68,7 +69,7 @@ def processData(file,mode):
 					new_ys.append(0)
 				else:
 					new_ys.append(1)
-			ys = new_ys
+			#ys = new_ys
 			xs = [[float(row[id]) for id in neural_xs_row_ids] for row in data]
 		else:
 			raise NotImplementedError
