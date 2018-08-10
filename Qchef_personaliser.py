@@ -85,7 +85,7 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
 	# Determine the num_epochs and num_batches
 	num_batches = 5
-	num_epochs = 100
+	num_epochs = 1000
 	batch_size = len(train_xset) / num_batches
 	# Convert labels to categorical one-hot encoding
 	# hot_train_yset = to_categorical(np.array(train_yset, dtype=np.float32), num_classes=6)
@@ -115,13 +115,14 @@ if __name__ == '__main__':
 	# Get the argument variables
 	user_input_fn = sys.argv[1]
 	mode = sys.argv[2]
+	food_cuisine_survey_fp = sys.argv[3]
 	print 'Algorithm:', mode
 	# Set the current working dir
 	cwd = os.getcwd()
 	# Get the survey object reader
 	survey_reader_obj = survey_reader()
 	# Input the food cuisine survey column names
-	food_cuisine_survey_fn = cwd +'/personalized-surprise/Food and Cuisine Preferences Survey (Responses) - Form Responses 1'
+	food_cuisine_survey_fn = cwd + food_cuisine_survey_fp
 	_, users_fam_dir_cols, _, users_cuisine_pref_cols, _, users_knowledge_cols, _, users_surp_ratings_cols, _, users_surp_pref_cols = \
 		survey_reader_obj.read_survey(food_cuisine_survey_fn)
 	# print users_fam_dir_cols, users_cuisine_pref_cols, users_knowledge_cols, users_surp_ratings_cols, users_surp_pref_cols
@@ -206,7 +207,7 @@ if __name__ == '__main__':
 			class_predictions_rounded = np.around(class_predictions)
 			print 'class_predictions_rounded', class_predictions_rounded
 			# Calculate accuracy
-			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, rounded_class_predictions)
+			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, class_predictions_rounded)
 			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
 			holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
 			print 'Models mean_squared_error:', holdout_model_accuracy
