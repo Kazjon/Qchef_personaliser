@@ -8,12 +8,6 @@ import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation
-from keras.layers.merge import Concatenate
-from keras.losses import mean_squared_error as keras_mean_squared_error
-from keras.backend import round as keras_round
-from keras.utils import to_categorical
 from user_input_training.survey_reader import survey_reader
 
 def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
@@ -79,7 +73,7 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Add a linear layer
 	model.add(Dense(1, activation='linear'))
 	# Add a softmax layer
-	# model.add(Dense(units=6, activation='softmax'))
+	# model.add(Dense(units=5, activation='softmax'))
 	# Compile with MSE as the loss measure, use RMSprop as the optimizer
 	# model.compile(optimizer='rmsprop', loss='mse', metrics=['categorical_accuracy'])
 	model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy', 'categorical_accuracy'])
@@ -117,15 +111,23 @@ if __name__ == '__main__':
 	mode = sys.argv[2]
 	food_cuisine_survey_fp = sys.argv[3]
 	print 'Algorithm:', mode
+	# Load keras libraries if using NNWs (to save time when using other techniques)
+	if mode == 'neural':
+		from keras.models import Sequential
+		from keras.layers import Dense, Dropout, Activation
+		from keras.layers.merge import Concatenate
+		from keras.losses import mean_squared_error as keras_mean_squared_error
+		from keras.backend import round as keras_round
+		from keras.utils import to_categorical
 	# Set the current working dir
 	cwd = os.getcwd()
 	# Get the survey object reader
 	survey_reader_obj = survey_reader()
 	# Input the food cuisine survey column names
 	food_cuisine_survey_fn = cwd + food_cuisine_survey_fp
-	_, users_fam_dir_cols, _, users_cuisine_pref_cols, _, users_knowledge_cols, _, users_surp_ratings_cols, _, users_surp_pref_cols = \
+	_, users_fam_cols, _, users_cuisine_pref_cols, _, users_knowledge_cols, _, users_surp_ratings_cols, _, users_surp_pref_cols = \
 		survey_reader_obj.read_survey(food_cuisine_survey_fn)
-	# print users_fam_dir_cols, users_cuisine_pref_cols, users_knowledge_cols, users_surp_ratings_cols, users_surp_pref_cols
+	cuisine_softmax_cols = ['mexican_softmax', 'chinese_softmax', 'modern_softmax', 'greek_softmax', 'indian_softmax', 'thai_softmax', 'italian_softmax']
 	# Read the prepared user input
 	user_input_df = pd.read_csv(user_input_fn)
 	# Divide the training-validation from the test-holdout by: users, recipes or random
@@ -136,7 +138,9 @@ if __name__ == '__main__':
 	user_input_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	train_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	test_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
-	# Remove unwanted features; choose to drop any of the following: users_fam_dir_cols, users_cuisine_pref_cols, users_knowledge_cols, users_surp_pref_cols
+	# Remove unwanted features; choose to drop any of the following:
+	# users_fam_cols, users_cuisine_pref_cols, users_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
+	# oracle_surp_estimates_95perc, oracle_surp_estimates_max, personalized_surp_estimates_95perc, personalized_surp_estimates_max, users_surp_pref
 	dropped_cols = []
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
 	train_df.drop(dropped_cols, axis=1, inplace=True)
