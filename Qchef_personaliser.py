@@ -8,7 +8,7 @@ import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support
-from user_input_training.survey_reader import survey_reader
+from GloVex.evaluate_personalised import survey_reader
 
 def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	# Initialize 4 RF models
@@ -125,8 +125,13 @@ if __name__ == '__main__':
 	survey_reader_obj = survey_reader()
 	# Input the food cuisine survey column names
 	food_cuisine_survey_fn = cwd + food_cuisine_survey_fp
-	_, users_fam_cols, _, users_cuisine_pref_cols, _, users_knowledge_cols, _, users_surp_ratings_cols, _, users_surp_pref_cols = \
-		survey_reader_obj.read_survey(food_cuisine_survey_fn)
+	# _, users_fam_cols, _, users_cuisine_pref_cols, _, users_knowledge_cols, _, users_surp_ratings_cols, _, users_surp_pref_cols = \
+	# 	survey_reader_obj.read_survey(food_cuisine_survey_fn)
+	fam_cat_sorted = ['mexican', 'chinese', 'modern', 'greek', 'indian', 'thai', 'italian']
+	_, users_fam_cols, _, users_cuisine_pref_cols, \
+	_, knowledge_ingredient_cols, _, cuisine_knowledge_cols, \
+	_, surprise_rating_cols, _, users_surp_pref_cols = \
+		survey_reader_obj.read_survey(food_cuisine_survey_fn, fam_cat_sorted)
 	cuisine_softmax_cols = ['mexican_softmax', 'chinese_softmax', 'modern_softmax', 'greek_softmax', 'indian_softmax', 'thai_softmax', 'italian_softmax']
 	# Read the prepared user input
 	user_input_df = pd.read_csv(user_input_fn)
@@ -139,7 +144,7 @@ if __name__ == '__main__':
 	train_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	test_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	# Remove unwanted features; choose to drop any of the following:
-	# users_fam_cols, users_cuisine_pref_cols, users_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
+	# users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
 	# oracle_surp_estimates_95perc, oracle_surp_estimates_max, personalized_surp_estimates_95perc, personalized_surp_estimates_max, users_surp_pref
 	dropped_cols = []
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
