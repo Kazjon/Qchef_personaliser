@@ -7,7 +7,7 @@
 import os, sys, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
-from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
 from GloVex.evaluate_personalised import survey_reader
 
 def RF_classifier(train_xset, train_raw_ys, test_xset, test_raw_ys):
@@ -105,6 +105,14 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	return model
 
+def within_one_accuracy_fn(__confusion_matrix_arr__):
+	__within_one_accuracy__ = 0
+	for each_label in range(len(__confusion_matrix_arr__) - 1):
+		__within_one_accuracy__ += __confusion_matrix_arr__[each_label][each_label] + \
+								   __confusion_matrix_arr__[each_label][each_label + 1] + \
+								   __confusion_matrix_arr__[each_label + 1][each_label]
+	return __within_one_accuracy__
+
 if __name__ == '__main__':
 	# Get the argument variables
 	user_input_fn = sys.argv[1]
@@ -132,9 +140,17 @@ if __name__ == '__main__':
 	_, knowledge_ingredient_cols, _, cuisine_knowledge_cols, \
 	_, surprise_rating_cols, _, users_surp_pref_cols = \
 		survey_reader_obj.read_survey(food_cuisine_survey_fn, fam_cat_sorted)
-	cuisine_softmax_cols = ['mexican_softmax', 'chinese_softmax', 'modern_softmax', 'greek_softmax', 'indian_softmax', 'thai_softmax', 'italian_softmax']
+	cuisine_softmax_cols = [each_cuisine + '_softmax' for each_cuisine in fam_cat_sorted]
 	# Read the prepared user input
 	user_input_df = pd.read_csv(user_input_fn)
+	print 'user_input_df', len(user_input_df)
+	print 'user_input_df', user_input_df['users_surp_ratings'].unique()
+	print 'user_input_df', user_input_df['Recipe ID'].nunique()
+	# Remove unsure records
+	user_input_df = user_input_df[user_input_df['users_surp_ratings'] != -0.2]
+	print 'user_input_df', len(user_input_df)
+	print 'user_input_df', user_input_df['users_surp_ratings'].unique()
+	print 'user_input_df', user_input_df['Recipe ID'].nunique()
 	# Divide the training-validation from the test-holdout by: users, recipes or random
 	msk = np.random.rand(len(user_input_df)) < 0.8
 	train_df = user_input_df[msk]
@@ -224,6 +240,11 @@ if __name__ == '__main__':
 			print 'Models mean_absolute_error:', holdout_model_accuracy
 			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions_rounded, average='macro')
 			print 'holdout_model_recall_fscore', holdout_model_recall_fscore
+			confusion_matrix_arr = confusion_matrix(test_target_var, class_predictions_rounded, labels=list(set(test_target_var)))
+			print 'Confusion matrix:\n', confusion_matrix_arr
+			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
+
 	elif mode ==  'neural':
 		for each_predictor in predictors_dict:
 			print 'each_predictor', each_predictor
@@ -244,6 +265,11 @@ if __name__ == '__main__':
 			print 'Models keras_holdout_model_accuracy:', keras_holdout_model_accuracy
 			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, holdout_test_pred_rounded, average='macro')
 			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
+			confusion_matrix_arr = confusion_matrix(test_target_var, holdout_test_pred_rounded, labels=list(set(test_target_var)))
+			print 'Confusion matrix:\n', confusion_matrix_arr
+			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
+
 	elif mode ==  'RF_classifier':
 		for each_models_dict in predictors_dict:
 			print 'models_dict', each_models_dict
@@ -272,3 +298,7 @@ if __name__ == '__main__':
 			print 'Models mean_absolute_error:', holdout_model_accuracy
 			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
 			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
+			confusion_matrix_arr = confusion_matrix(test_target_var, final_class_predictions, labels=list(set(test_target_var)))
+			print 'Confusion matrix:\n', confusion_matrix_arr
+			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
