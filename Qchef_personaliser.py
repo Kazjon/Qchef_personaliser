@@ -4,7 +4,7 @@
 # ToDo: Make switching between using the target variable scaled before or after training optinal through arguments
 # ToDo: Make switching between categorical and continuous for the NNW optinal through arguments
 
-import os, sys, numpy as np, pandas as pd
+import os, sys, math, random, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
@@ -117,11 +117,13 @@ def within_one_accuracy_fn(__confusion_matrix_arr__):
 if __name__ == '__main__':
 	# Get the argument variables
 	user_input_fn = sys.argv[1]
-	mode = sys.argv[2]
+	algo_mode = sys.argv[2]
 	food_cuisine_survey_fp = sys.argv[3]
-	print 'Algorithm:', mode
+	split_mode = sys.argv[4]
+	print 'Algorithm:', algo_mode
+	print 'Split mode:', split_mode
 	# Load keras libraries if using NNWs (to save time when using other techniques)
-	if mode == 'neural':
+	if algo_mode == 'neural':
 		from keras.models import Sequential
 		from keras.layers import Dense, Dropout, Activation
 		from keras.layers.merge import Concatenate
@@ -178,15 +180,15 @@ if __name__ == '__main__':
 	train_target_var = train_df['users_surp_ratings']
 	test_target_var = test_df['users_surp_ratings']
 	# Choose the model's target scale (0->1, 1->5)
-	if mode == 'RF_classifier':
+	if algo_mode == 'RF_classifier':
 		target_var = target_var.values * 5
 		train_target_var = train_target_var.values * 5
 		test_target_var = test_target_var.values * 5
-	elif mode == 'RF_regressor':
+	elif algo_mode == 'RF_regressor':
 		target_var = target_var.values * 5
 		train_target_var = train_target_var.values * 5
 		test_target_var = test_target_var.values * 5
-	elif mode == 'neural':
+	elif algo_mode == 'neural':
 		target_var = target_var.values * 5
 		train_target_var = train_target_var.values * 5
 		test_target_var = test_target_var.values * 5
@@ -219,15 +221,15 @@ if __name__ == '__main__':
 		train_ys, test_ys = train_target_var[train_ids], train_target_var[test_ids]
 		# print 'test_ys', len(test_ys), set(test_ys), test_ys
 		# Choose and build the model
-		if mode == 'RF_classifier':
+		if algo_mode == 'RF_classifier':
 			predictors_dict[fold_idx] = RF_classifier(train_xs, train_ys, test_xs, test_ys)
-		elif mode == 'RF_regressor':
+		elif algo_mode == 'RF_regressor':
 			predictors_dict[fold_idx] = RF_regressor(train_xs, train_ys, test_xs, test_ys)
-		elif mode == 'neural':
+		elif algo_mode == 'neural':
 			predictors_dict[fold_idx] = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
 		# break
 	print 'Test predictions on test-holdout:'
-	if mode ==  'RF_regressor':
+	if algo_mode ==  'RF_regressor':
 		for each_predictor in predictors_dict:
 			print 'each_predictor', each_predictor
 			# Evaluate the model
@@ -251,7 +253,7 @@ if __name__ == '__main__':
 			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
 			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
 
-	elif mode ==  'neural':
+	elif algo_mode ==  'neural':
 		for each_predictor in predictors_dict:
 			print 'each_predictor', each_predictor
 			# Evaluate the model
@@ -276,7 +278,7 @@ if __name__ == '__main__':
 			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
 			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
 
-	elif mode ==  'RF_classifier':
+	elif algo_mode ==  'RF_classifier':
 		for each_models_dict in predictors_dict:
 			print 'models_dict', each_models_dict
 			models_dict = predictors_dict[each_models_dict]
