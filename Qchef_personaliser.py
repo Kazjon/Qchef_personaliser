@@ -111,6 +111,7 @@ def within_one_accuracy_fn(__confusion_matrix_arr__):
 		__within_one_accuracy__ += __confusion_matrix_arr__[each_label][each_label] + \
 								   __confusion_matrix_arr__[each_label][each_label + 1] + \
 								   __confusion_matrix_arr__[each_label + 1][each_label]
+	__within_one_accuracy__ += __confusion_matrix_arr__[-1][-1]
 	return __within_one_accuracy__
 
 if __name__ == '__main__':
@@ -143,14 +144,15 @@ if __name__ == '__main__':
 	cuisine_softmax_cols = [each_cuisine + '_softmax' for each_cuisine in fam_cat_sorted]
 	# Read the prepared user input
 	user_input_df = pd.read_csv(user_input_fn)
-	print 'user_input_df', len(user_input_df)
-	print 'user_input_df', user_input_df['users_surp_ratings'].unique()
-	print 'user_input_df', user_input_df['Recipe ID'].nunique()
+	print 'Number of records:', len(user_input_df)
+	print 'Unique surprise ratings:', user_input_df['users_surp_ratings'].unique()
+	print 'Number of unique surprise ratings:', user_input_df['Recipe ID'].nunique()
 	# Remove unsure records
 	user_input_df = user_input_df[user_input_df['users_surp_ratings'] != -0.2]
-	print 'user_input_df', len(user_input_df)
-	print 'user_input_df', user_input_df['users_surp_ratings'].unique()
-	print 'user_input_df', user_input_df['Recipe ID'].nunique()
+	print 'After filtering out the unsure records:'
+	print 'Number of records:', len(user_input_df)
+	print 'Unique surprise ratings:', user_input_df['users_surp_ratings'].unique()
+	print 'Number of unique surprise ratings:', user_input_df['Recipe ID'].nunique()
 	# Divide the training-validation from the test-holdout by: users, recipes or random
 	msk = np.random.rand(len(user_input_df)) < 0.8
 	train_df = user_input_df[msk]
@@ -160,8 +162,12 @@ if __name__ == '__main__':
 	train_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	test_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	# Remove unwanted features; choose to drop any of the following:
-	# users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
-	# oracle_surp_estimates_95perc, oracle_surp_estimates_max, personalized_surp_estimates_95perc, personalized_surp_estimates_max, users_surp_pref
+	# Lists of column names: users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
+	# Individual column names:
+	# 	'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
+	# 	'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
+	# 	'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
+	# 	'users_surp_pref'
 	dropped_cols = []
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
 	train_df.drop(dropped_cols, axis=1, inplace=True)
