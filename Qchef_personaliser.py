@@ -119,9 +119,7 @@ if __name__ == '__main__':
 	user_input_fn = sys.argv[1]
 	algo_mode = sys.argv[2]
 	food_cuisine_survey_fp = sys.argv[3]
-	split_mode = sys.argv[4]
 	print 'Algorithm:', algo_mode
-	print 'Split mode:', split_mode
 	# Load keras libraries if using NNWs (to save time when using other techniques)
 	if algo_mode == 'neural':
 		from keras.models import Sequential
@@ -216,7 +214,7 @@ if __name__ == '__main__':
 	# Iterate over the splits
 	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(train_predictive_var_arr)):
 		print 'fold_idx', fold_idx
-		# Split the training from testing using the IDs
+		# Split the training from validation (not testing; that's why we are using the training set) using the IDs
 		train_xs, test_xs = train_predictive_var_arr[train_ids], train_predictive_var_arr[test_ids]
 		train_ys, test_ys = train_target_var[train_ids], train_target_var[test_ids]
 		# print 'test_ys', len(test_ys), set(test_ys), test_ys
