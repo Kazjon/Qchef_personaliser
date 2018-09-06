@@ -125,7 +125,7 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	confusion_matrix_arr = confusion_matrix(test_yset, test_pred_rounded, labels=list(set(test_yset)))
 	print 'Confusion matrix:\n', confusion_matrix_arr
 	within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
-	within_one_accuracy_percentage = within_one_accuracy / float(len(test_yset)) * 100, '%'
+	within_one_accuracy_percentage = within_one_accuracy / float(len(test_yset)) * 100
 	print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_percentage, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_yset, test_pred_rounded, average='macro')
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
@@ -268,12 +268,14 @@ if __name__ == '__main__':
 		# print 'test_ys', len(test_ys), set(test_ys), test_ys
 		# Choose and build the model
 		if algo_mode == 'RF_regressor':
-			within_one_accuracy_arr.append(RF_regressor(train_xs, train_ys, test_xs, test_ys))
+			within_one_accuracy = RF_regressor(train_xs, train_ys, test_xs, test_ys)
+			within_one_accuracy_arr.append(within_one_accuracy)
 		elif algo_mode == 'neural':
-			within_one_accuracy_arr.append(neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys))
+			within_one_accuracy = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
+			within_one_accuracy_arr.append(within_one_accuracy)
 		else:
 			print 'Sorry! No algorithm chosen!'
 			sys.exit()
 	avg_within_one_accuracy = reduce(lambda x, y: x + y, within_one_accuracy_arr) / len(within_one_accuracy_arr)
 	std_within_one_accuracy = statistics.stdev(within_one_accuracy_arr)
-	print 'Average of within one accuracy:', avg_within_one_accuracy, '%', 'STD:', std_within_one_accuracy
+	print 'Average of within one accuracy:', avg_within_one_accuracy, '%,', 'STD:', std_within_one_accuracy, '%'
