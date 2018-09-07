@@ -203,15 +203,9 @@ if __name__ == '__main__':
 		kf = KFold(n_splits=16, shuffle=True)
 	# Iterate over the splits
 	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(id_list)):
-		# print 'col_name', col_name
-		# print 'id_list', id_list
-		# print 'fold_idx', fold_idx
-		# print 'train_ids, test_ids', train_ids, test_ids
 		# train_ids are indecies of the IDs not the IDs themselves, so id_list[train_ids] for getting those IDs
 		temp_train_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[train_ids])]
 		temp_test_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[test_ids])]
-		# print 'train_df', train_df[col_name].unique()
-		# print 'test_df', test_df[col_name].unique()
 		# Remove user and recipe IDs and make a new separate DF without those IDs, because we want to use the IDs in the next iterations
 		user_input_df = temp_user_input_df.drop(['Recipe ID', 'User ID'], axis=1)
 		train_df = temp_train_df.drop(['Recipe ID', 'User ID'], axis=1)
@@ -257,21 +251,15 @@ if __name__ == '__main__':
 		predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
 		train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
 		test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
-		# print 'test_target_var', test_target_var
 		# Get number of used predictive variables
 		num_predictive_vars = np.shape(predictive_var_arr)[1]
 		print 'Number of predictive variables:', num_predictive_vars
-		print 'Cross-validation:'
-		# Split the training from testing using the IDs
-		train_xs, test_xs = train_predictive_var_arr[train_ids], test_predictive_var_arr[test_ids]
-		train_ys, test_ys = train_target_var[train_ids], test_target_var[test_ids]
-		# print 'test_ys', len(test_ys), set(test_ys), test_ys
 		# Choose and build the model
 		if algo_mode == 'RF_regressor':
-			within_one_accuracy = RF_regressor(train_xs, train_ys, test_xs, test_ys)
+			within_one_accuracy = RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
 			within_one_accuracy_arr.append(within_one_accuracy)
 		elif algo_mode == 'neural':
-			within_one_accuracy = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
+			within_one_accuracy = neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
 			within_one_accuracy_arr.append(within_one_accuracy)
 		else:
 			print 'Sorry! No algorithm chosen!'
