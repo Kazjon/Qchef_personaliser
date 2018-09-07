@@ -4,7 +4,7 @@
 # ToDo: Make switching between using the target variable scaled before or after training optinal through arguments
 # ToDo: Make switching between categorical and continuous for the NNW optinal through arguments
 
-import os, sys, math, random, numpy as np, pandas as pd
+import os, sys, math, statistics, random, numpy as np, pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
@@ -162,12 +162,12 @@ if __name__ == '__main__':
 	train_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	test_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
 	# Remove unwanted features; choose to drop any of the following:
-	# Lists of column names: users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
+	# Lists of column names: users_fam_cols + users_cuisine_pref_cols + cuisine_knowledge_cols + cuisine_softmax_cols + \
 	# Individual column names:
-	# 	'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
-	# 	'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
-	# 	'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-	# 	'users_surp_pref'
+	# ['observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
+	#  'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
+	#  'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
+	#  'users_surp_pref']
 	dropped_cols = []
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
 	train_df.drop(dropped_cols, axis=1, inplace=True)
@@ -206,105 +206,120 @@ if __name__ == '__main__':
 	# Get number of used predictive variables
 	num_predictive_vars = np.shape(predictive_var_arr)[1]
 	print 'Number of predictive variables:', num_predictive_vars
-	print 'Cross-validation:'
-	# Create a K fold separation
-	kf = KFold(n_splits=3)
-	# Initialize dict of predictors to store the predictors of each fold
-	predictors_dict = {}
-	# Iterate over the splits
-	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(train_predictive_var_arr)):
-		print 'fold_idx', fold_idx
-		# Split the training from validation (not testing; that's why we are using the training set) using the IDs
-		train_xs, test_xs = train_predictive_var_arr[train_ids], train_predictive_var_arr[test_ids]
-		train_ys, test_ys = train_target_var[train_ids], train_target_var[test_ids]
-		# print 'test_ys', len(test_ys), set(test_ys), test_ys
-		# Choose and build the model
-		if algo_mode == 'RF_classifier':
-			predictors_dict[fold_idx] = RF_classifier(train_xs, train_ys, test_xs, test_ys)
-		elif algo_mode == 'RF_regressor':
-			predictors_dict[fold_idx] = RF_regressor(train_xs, train_ys, test_xs, test_ys)
-		elif algo_mode == 'neural':
-			predictors_dict[fold_idx] = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
-		# break
-	print 'Test predictions on test-holdout:'
-	if algo_mode ==  'RF_regressor':
-		for each_predictor in predictors_dict:
-			print 'each_predictor', each_predictor
-			# Evaluate the model
-			holdout_model_score = predictors_dict[each_predictor].score(test_predictive_var_arr, test_target_var)
-			print 'Models accuracy score:', holdout_model_score * 100, '%'
-			class_predictions = np.array(predictors_dict[each_predictor].predict(test_predictive_var_arr))
-			print 'class_predictions', class_predictions
-			class_predictions_rounded = np.around(class_predictions)
-			print 'class_predictions_rounded', class_predictions_rounded
-			# Calculate accuracy
-			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, class_predictions_rounded)
-			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
-			holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
-			print 'Models mean_squared_error:', holdout_model_accuracy
-			holdout_model_accuracy = mean_absolute_error(test_target_var, class_predictions)
-			print 'Models mean_absolute_error:', holdout_model_accuracy
-			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions_rounded, average='macro')
-			print 'holdout_model_recall_fscore', holdout_model_recall_fscore
-			confusion_matrix_arr = confusion_matrix(test_target_var, class_predictions_rounded, labels=list(set(test_target_var)))
-			print 'Confusion matrix:\n', confusion_matrix_arr
-			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
-			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
-
-	elif algo_mode ==  'neural':
-		for each_predictor in predictors_dict:
-			print 'each_predictor', each_predictor
-			# Evaluate the model
-			predictors_dict[each_predictor].evaluate(np.array(test_predictive_var_arr, dtype=np.float32), np.array(test_target_var, dtype=np.float32))
-			# Predict the output of the test dataset
-			holdout_test_pred = predictors_dict[each_predictor].predict(np.array(test_predictive_var_arr, dtype=np.float32), batch_size=len(test_predictive_var_arr))
-			# print 'holdout_test_pred', type(holdout_test_pred), holdout_test_pred
-			holdout_test_pred_rounded = np.around(holdout_test_pred)
-			# print 'rounding the predictions:', set(holdout_test_pred_rounded.flat), holdout_test_pred_rounded
-			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, holdout_test_pred_rounded, normalize=False), accuracy_score(test_target_var, holdout_test_pred_rounded)
-			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
-			holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred)
-			print 'Models mean_squared_error:', holdout_model_accuracy
-			holdout_model_accuracy = mean_absolute_error(test_target_var, holdout_test_pred)
-			print 'Models mean_absolute_error:', holdout_model_accuracy
-			keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred)
-			print 'Models keras_holdout_model_accuracy:', keras_holdout_model_accuracy
-			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, holdout_test_pred_rounded, average='macro')
-			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
-			confusion_matrix_arr = confusion_matrix(test_target_var, holdout_test_pred_rounded, labels=list(set(test_target_var)))
-			print 'Confusion matrix:\n', confusion_matrix_arr
-			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
-			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
-
-	elif algo_mode ==  'RF_classifier':
-		for each_models_dict in predictors_dict:
-			print 'models_dict', each_models_dict
-			models_dict = predictors_dict[each_models_dict]
-			class_predictions_dict = {}
-			# Iterate over the 4 models and fit them to training then test them
-			for class_idx in models_dict:
+	# Repeat the experiment num_exp times
+	num_exp = 10
+	within_one_accuracy_perc_arr = []
+	for experiment_i in range(num_exp):
+		print 'experiment number:', experiment_i
+		print 'Cross-validation:'
+		# Create a K fold separation
+		kf = KFold(n_splits=3, shuffle=True)
+		# Initialize dict of predictors to store the predictors of each fold
+		predictors_dict = {}
+		# Iterate over the splits
+		for fold_idx, (train_ids, test_ids) in enumerate(kf.split(train_predictive_var_arr)):
+			print 'fold_idx', fold_idx
+			# Split the training from validation (not testing; that's why we are using the training set) using the IDs
+			train_xs, test_xs = train_predictive_var_arr[train_ids], train_predictive_var_arr[test_ids]
+			train_ys, test_ys = train_target_var[train_ids], train_target_var[test_ids]
+			# Choose and build the model
+			if algo_mode == 'RF_classifier':
+				predictors_dict[fold_idx] = RF_classifier(train_xs, train_ys, test_xs, test_ys)
+			elif algo_mode == 'RF_regressor':
+				predictors_dict[fold_idx] = RF_regressor(train_xs, train_ys, test_xs, test_ys)
+			elif algo_mode == 'neural':
+				predictors_dict[fold_idx] = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
+			# break
+		print 'Test predictions on test-holdout:'
+		if algo_mode ==  'RF_regressor':
+			for each_predictor in predictors_dict:
+				print 'each_predictor', each_predictor
 				# Evaluate the model
-				model_score = models_dict[class_idx].score(test_predictive_var_arr, test_target_var)
-				print 'model.score for class > ', class_idx + 1, ':', model_score
-				class_prediction = models_dict[class_idx].predict(test_predictive_var_arr)
-				# print 'Predictions of class > ', class_idx + 1, ':', class_prediction
-				# Store class prediction
-				class_predictions_dict[class_idx + 1] = class_prediction
-			# Get final class prediction
-			final_class_predictions = [0] * len(class_predictions_dict[1])
-			for each_class in class_predictions_dict:
-				final_class_predictions += class_predictions_dict[each_class]
-			# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
-			# Calculate accuracy
-			holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
-			print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
-			holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
-			print 'Models mean_squared_error:', holdout_model_accuracy
-			holdout_model_accuracy = mean_absolute_error(test_target_var, final_class_predictions)
-			print 'Models mean_absolute_error:', holdout_model_accuracy
-			holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
-			print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
-			confusion_matrix_arr = confusion_matrix(test_target_var, final_class_predictions, labels=list(set(test_target_var)))
-			print 'Confusion matrix:\n', confusion_matrix_arr
-			within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
-			print 'within_one_accuracy', within_one_accuracy, within_one_accuracy / float(len(test_target_var)) * 100, '%'
+				holdout_model_score = predictors_dict[each_predictor].score(test_predictive_var_arr, test_target_var)
+				print 'Models accuracy score:', holdout_model_score * 100, '%'
+				class_predictions = np.array(predictors_dict[each_predictor].predict(test_predictive_var_arr))
+				print 'class_predictions', class_predictions
+				class_predictions_rounded = np.around(class_predictions)
+				print 'class_predictions_rounded', class_predictions_rounded
+				# Calculate accuracy
+				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, class_predictions_rounded)
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
+				print 'Models mean_squared_error:', holdout_model_accuracy
+				holdout_model_accuracy = mean_absolute_error(test_target_var, class_predictions)
+				print 'Models mean_absolute_error:', holdout_model_accuracy
+				holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions_rounded, average='macro')
+				print 'holdout_model_recall_fscore', holdout_model_recall_fscore
+				confusion_matrix_arr = confusion_matrix(test_target_var, class_predictions_rounded, labels=list(set(test_target_var)))
+				print 'Confusion matrix:\n', confusion_matrix_arr
+				within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
+				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
+				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
+
+		elif algo_mode ==  'neural':
+			for each_predictor in predictors_dict:
+				print 'each_predictor', each_predictor
+				# Evaluate the model
+				predictors_dict[each_predictor].evaluate(np.array(test_predictive_var_arr, dtype=np.float32), np.array(test_target_var, dtype=np.float32))
+				# Predict the output of the test dataset
+				holdout_test_pred = predictors_dict[each_predictor].predict(np.array(test_predictive_var_arr, dtype=np.float32), batch_size=len(test_predictive_var_arr))
+				# print 'holdout_test_pred', type(holdout_test_pred), holdout_test_pred
+				holdout_test_pred_rounded = np.around(holdout_test_pred)
+				# print 'rounding the predictions:', set(holdout_test_pred_rounded.flat), holdout_test_pred_rounded
+				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, holdout_test_pred_rounded, normalize=False), accuracy_score(test_target_var, holdout_test_pred_rounded)
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred)
+				print 'Models mean_squared_error:', holdout_model_accuracy
+				holdout_model_accuracy = mean_absolute_error(test_target_var, holdout_test_pred)
+				print 'Models mean_absolute_error:', holdout_model_accuracy
+				keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred)
+				print 'Models keras_holdout_model_accuracy:', keras_holdout_model_accuracy
+				holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, holdout_test_pred_rounded, average='macro')
+				print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
+				confusion_matrix_arr = confusion_matrix(test_target_var, holdout_test_pred_rounded, labels=list(set(test_target_var)))
+				print 'Confusion matrix:\n', confusion_matrix_arr
+				within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
+				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
+				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
+
+		elif algo_mode ==  'RF_classifier':
+			for each_models_dict in predictors_dict:
+				print 'models_dict', each_models_dict
+				models_dict = predictors_dict[each_models_dict]
+				class_predictions_dict = {}
+				# Iterate over the 4 models and fit them to training then test them
+				for class_idx in models_dict:
+					# Evaluate the model
+					model_score = models_dict[class_idx].score(test_predictive_var_arr, test_target_var)
+					print 'model.score for class > ', class_idx + 1, ':', model_score
+					class_prediction = models_dict[class_idx].predict(test_predictive_var_arr)
+					# print 'Predictions of class > ', class_idx + 1, ':', class_prediction
+					# Store class prediction
+					class_predictions_dict[class_idx + 1] = class_prediction
+				# Get final class prediction
+				final_class_predictions = [0] * len(class_predictions_dict[1])
+				for each_class in class_predictions_dict:
+					final_class_predictions += class_predictions_dict[each_class]
+				# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
+				# Calculate accuracy
+				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
+				print 'Models mean_squared_error:', holdout_model_accuracy
+				holdout_model_accuracy = mean_absolute_error(test_target_var, final_class_predictions)
+				print 'Models mean_absolute_error:', holdout_model_accuracy
+				holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
+				print 'Using precision_recall_fscore_support:', holdout_model_recall_fscore
+				confusion_matrix_arr = confusion_matrix(test_target_var, final_class_predictions, labels=list(set(test_target_var)))
+				print 'Confusion matrix:\n', confusion_matrix_arr
+				within_one_accuracy = within_one_accuracy_fn(confusion_matrix_arr)
+				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
+				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
+				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
+	# Calculate the percentage average and standard deviation of the accuracies
+	within_one_accuracy_perc_avg = sum(within_one_accuracy_perc_arr) / float(len(within_one_accuracy_perc_arr))
+	within_one_accuracy_stdev = statistics.stdev(within_one_accuracy_perc_arr)
+	print 'Within-one-accuracy average and STD:'
+	print within_one_accuracy_perc_avg, within_one_accuracy_stdev
