@@ -114,6 +114,17 @@ def within_one_accuracy_fn(__confusion_matrix_arr__):
 	__within_one_accuracy__ += __confusion_matrix_arr__[-1][-1]
 	return __within_one_accuracy__
 
+def get_recipes_cuisine(row):
+	b = (user_input_df[cuisine_softmax_cols].ix[row.name] == 0.2)
+	return b.idxmax().replace('_softmax', '')
+
+def get_attr_cuisine(row, attr):
+	selected_cuisine = row['recipes_cuisine'] + attr
+	if selected_cuisine == 'modern_cuisine_pref':
+		average_cuisine_pref = sum(list(user_input_df[cuisine_preference_cols].ix[row.name])) / float(len(cuisine_preference_cols))
+		return average_cuisine_pref
+	return user_input_df[selected_cuisine].ix[row.name]
+
 if __name__ == '__main__':
 	# Get the argument variables
 	user_input_fn = sys.argv[1]
@@ -142,11 +153,20 @@ if __name__ == '__main__':
 	_, surprise_rating_cols, _, users_surp_pref_cols = \
 		survey_reader_obj.read_survey(food_cuisine_survey_fn, fam_cat_sorted)
 	cuisine_softmax_cols = [each_cuisine + '_softmax' for each_cuisine in fam_cat_sorted]
+	cuisine_preference_cols = [_each_ + '_cuisine_pref' for _each_ in fam_cat_sorted if _each_ != 'modern']
+	cuisine_fam_dir = [_each_ + '_fam_dir' for _each_ in fam_cat_sorted]
 	# Read the prepared user input
 	user_input_df = pd.read_csv(user_input_fn)
 	print 'Number of records:', len(user_input_df)
 	print 'Unique surprise ratings:', user_input_df['users_surp_ratings'].unique()
 	print 'Number of unique surprise ratings:', user_input_df['Recipe ID'].nunique()
+	# Get the familiarity, knowledge and preference of the recipe's cuisine
+	user_input_df['recipes_cuisine'] = user_input_df[cuisine_softmax_cols].apply(get_recipes_cuisine, axis=1)
+	print 'user_input_df', user_input_df.columns
+	user_input_df['recipe_familiarity'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_fam_dir'), axis=1)
+	user_input_df['recipe_knowledge'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_knowledge'), axis=1)
+	user_input_df['recipe_preference'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_pref'), axis=1)
+
 	# Remove unsure records
 	user_input_df = user_input_df[user_input_df['users_surp_ratings'] != -0.2]
 	print 'After filtering out the unsure records:'
@@ -167,8 +187,18 @@ if __name__ == '__main__':
 	# ['observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
 	#  'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
 	#  'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-	#  'users_surp_pref']
-	dropped_cols = []
+	#  'users_surp_pref'
+	#  'recipe_familiarity', 'recipe_knowledge', 'recipe_preference']
+	dropped_cols = users_fam_cols + users_cuisine_pref_cols + cuisine_knowledge_cols + cuisine_softmax_cols + \
+	[
+	 # 'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
+	 'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
+	 'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
+	 'users_surp_pref',
+	 # 'recipe_familiarity',
+	 # 'recipe_knowledge',
+	 # 'recipe_preference',
+	 'recipes_cuisine']
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
 	train_df.drop(dropped_cols, axis=1, inplace=True)
 	test_df.drop(dropped_cols, axis=1, inplace=True)
