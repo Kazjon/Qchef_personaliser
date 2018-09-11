@@ -187,18 +187,9 @@ if __name__ == '__main__':
 	# ['observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
 	#  'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
 	#  'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-	#  'users_surp_pref'
-	#  'recipe_familiarity', 'recipe_knowledge', 'recipe_preference']
-	dropped_cols = users_fam_cols + users_cuisine_pref_cols + cuisine_knowledge_cols + cuisine_softmax_cols + \
-	[
-	 # 'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
-	 'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
-	 'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-	 'users_surp_pref',
-	 # 'recipe_familiarity',
-	 # 'recipe_knowledge',
-	 # 'recipe_preference',
-	 'recipes_cuisine']
+	#  'users_surp_pref',
+	#  'recipe_familiarity', 'recipe_knowledge', 'recipe_preference', 'recipes_cuisine']
+	dropped_cols = ['recipes_cuisine']
 	user_input_df.drop(dropped_cols, axis=1, inplace=True)
 	train_df.drop(dropped_cols, axis=1, inplace=True)
 	test_df.drop(dropped_cols, axis=1, inplace=True)
