@@ -210,19 +210,10 @@ if __name__ == '__main__':
 		target_var = user_input_df['users_surp_ratings']
 		train_target_var = train_df['users_surp_ratings']
 		test_target_var = test_df['users_surp_ratings']
-		# Choose the model's target scale (0->1, 1->5)
-		if algo_mode == 'RF_classifier':
-			target_var = target_var.values * 5
-			train_target_var = train_target_var.values * 5
-			test_target_var = test_target_var.values * 5
-		elif algo_mode == 'RF_regressor':
-			target_var = target_var.values * 5
-			train_target_var = train_target_var.values * 5
-			test_target_var = test_target_var.values * 5
-		elif algo_mode == 'neural':
-			target_var = target_var.values * 5
-			train_target_var = train_target_var.values * 5
-			test_target_var = test_target_var.values * 5
+		# Scale the target variable to be 1-5
+		target_var = target_var.values * 5
+		train_target_var = train_target_var.values * 5
+		test_target_var = test_target_var.values * 5
 		# Drop the target variable
 		user_input_df.drop(['users_surp_ratings'], axis=1, inplace=True)
 		train_df.drop(['users_surp_ratings'], axis=1, inplace=True)
