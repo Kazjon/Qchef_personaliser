@@ -4,7 +4,8 @@
 # ToDo: Make switching between using the target variable scaled before or after training optinal through arguments
 # ToDo: Make switching between categorical and continuous for the NNW optinal through arguments
 
-import os, sys, math, statistics, random, numpy as np, pandas as pd
+import os, sys, statistics, numpy as np, pandas as pd
+from scipy.stats import pearsonr, spearmanr
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
@@ -179,6 +180,8 @@ if __name__ == '__main__':
 	num_exp = 10
 	kf = KFold(n_splits=num_exp)
 	within_one_accuracy_perc_arr = []
+	spearmanr_arr = []
+	pearsonr_arr = []
 	for experiment_i, (experiment_train_idx, experiment_test_idx) in enumerate(kf.split(user_recipe_ID_pair)):
 		print 'Experiment number:', experiment_i
 		# Divide the training-validation from the test-holdout by: users, recipes or random
@@ -230,6 +233,7 @@ if __name__ == '__main__':
 		# Get number of used predictive variables
 		num_predictive_vars = np.shape(predictive_var_arr)[1]
 		print 'Number of predictive variables:', num_predictive_vars
+
 		print 'Cross-validation:'
 		# Create a K fold separation
 		kf = KFold(n_splits=3, shuffle=True)
@@ -248,7 +252,7 @@ if __name__ == '__main__':
 				predictors_dict[fold_idx] = RF_regressor(train_xs, train_ys, test_xs, test_ys)
 			elif algo_mode == 'neural':
 				predictors_dict[fold_idx] = neuralRatingPredictor(train_xs, train_ys, test_xs, test_ys)
-			# break
+
 		print 'Test predictions on test-holdout:'
 		if algo_mode ==  'RF_regressor':
 			for each_predictor in predictors_dict:
@@ -275,9 +279,11 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
-				user_recipe_predictions = {each_user_recipe: each_prediction
-					for each_user_recipe, each_prediction in zip(test_user_recipe_ID_pair, class_predictions_rounded)}
-				print 'user_recipe_predictions', user_recipe_predictions
+				spearmanr_corr = spearmanr(test_target_var, class_predictions_rounded)
+				pearsonr_corr = pearsonr(test_target_var, class_predictions_rounded)
+				print 'pearsonr_corr', pearsonr_corr
+				spearmanr_arr.append(spearmanr_corr)
+				pearsonr_arr.append(pearsonr_corr)
 
 		elif algo_mode ==  'neural':
 			for each_predictor in predictors_dict:
@@ -305,6 +311,11 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
+				spearmanr_corr = spearmanr(test_target_var, holdout_test_pred_rounded)
+				pearsonr_corr = pearsonr(test_target_var, holdout_test_pred_rounded)
+				print 'pearsonr_corr', pearsonr_corr
+				spearmanr_arr.append(spearmanr_corr)
+				pearsonr_arr.append(pearsonr_corr)
 
 		elif algo_mode ==  'RF_classifier':
 			for each_models_dict in predictors_dict:
@@ -345,3 +356,14 @@ if __name__ == '__main__':
 	within_one_accuracy_stdev = statistics.stdev(within_one_accuracy_perc_arr)
 	print 'Within-one-accuracy average and STD:'
 	print within_one_accuracy_perc_avg, within_one_accuracy_stdev
+	# Calculate the average pearson and spearman correlations
+	# print 'spearmanr_arr', spearmanr_arr
+	print 'average spearmanr correlation', sum([each_corr[0] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
+	print 'std spearmanr correlation', statistics.stdev([each_corr[0] for each_corr in spearmanr_arr])
+	print 'average spearmanr p-value', sum([each_corr[1] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
+	print 'std spearmanr p-value', statistics.stdev([each_corr[1] for each_corr in spearmanr_arr])
+	# print 'pearsonr_arr', pearsonr_arr
+	print 'average pearsonr correlation', sum([each_corr[0] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
+	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
+	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
+	print 'std pearsonr p-value', statistics.stdev([each_corr[1] for each_corr in pearsonr_arr])
