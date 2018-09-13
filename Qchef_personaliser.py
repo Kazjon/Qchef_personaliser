@@ -115,15 +115,15 @@ def within_one_accuracy_fn(__confusion_matrix_arr__):
 	return __within_one_accuracy__
 
 def get_recipes_cuisine(row):
-	b = (user_input_df[cuisine_softmax_cols].ix[row.name] == 0.2)
+	b = (tmp_user_input_df[cuisine_softmax_cols].ix[row.name] == 0.2)
 	return b.idxmax().replace('_softmax', '')
 
 def get_attr_cuisine(row, attr):
 	selected_cuisine = row['recipes_cuisine'] + attr
 	if selected_cuisine == 'modern_cuisine_pref':
-		average_cuisine_pref = sum(list(user_input_df[cuisine_preference_cols].ix[row.name])) / float(len(cuisine_preference_cols))
+		average_cuisine_pref = sum(list(tmp_user_input_df[cuisine_preference_cols].ix[row.name])) / float(len(cuisine_preference_cols))
 		return average_cuisine_pref
-	return user_input_df[selected_cuisine].ix[row.name]
+	return tmp_user_input_df[selected_cuisine].ix[row.name]
 
 if __name__ == '__main__':
 	# Get the argument variables
@@ -156,82 +156,89 @@ if __name__ == '__main__':
 	cuisine_preference_cols = [_each_ + '_cuisine_pref' for _each_ in fam_cat_sorted if _each_ != 'modern']
 	cuisine_fam_dir = [_each_ + '_fam_dir' for _each_ in fam_cat_sorted]
 	# Read the prepared user input
-	user_input_df = pd.read_csv(user_input_fn)
-	print 'Number of records:', len(user_input_df)
-	print 'Unique surprise ratings:', user_input_df['users_surp_ratings'].unique()
-	print 'Number of unique surprise ratings:', user_input_df['Recipe ID'].nunique()
+	tmp_user_input_df = pd.read_csv(user_input_fn)
+	print 'Number of records:', len(tmp_user_input_df)
+	print 'Unique surprise ratings:', tmp_user_input_df['users_surp_ratings'].unique()
+	print 'Number of unique surprise ratings:', tmp_user_input_df['Recipe ID'].nunique()
 	# Get the familiarity, knowledge and preference of the recipe's cuisine
-	user_input_df['recipes_cuisine'] = user_input_df[cuisine_softmax_cols].apply(get_recipes_cuisine, axis=1)
-	print 'user_input_df', user_input_df.columns
-	user_input_df['recipe_familiarity'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_fam_dir'), axis=1)
-	user_input_df['recipe_knowledge'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_knowledge'), axis=1)
-	user_input_df['recipe_preference'] = user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_pref'), axis=1)
-
+	tmp_user_input_df['recipes_cuisine'] = tmp_user_input_df[cuisine_softmax_cols].apply(get_recipes_cuisine, axis=1)
+	tmp_user_input_df['recipe_familiarity'] = tmp_user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_fam_dir'), axis=1)
+	tmp_user_input_df['recipe_knowledge'] = tmp_user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_knowledge'), axis=1)
+	tmp_user_input_df['recipe_preference'] = tmp_user_input_df.apply(lambda x: get_attr_cuisine(x, attr='_cuisine_pref'), axis=1)
 	# Remove unsure records
-	user_input_df = user_input_df[user_input_df['users_surp_ratings'] != -0.2]
+	tmp_user_input_df = tmp_user_input_df[tmp_user_input_df['users_surp_ratings'] != -0.2]
 	print 'After filtering out the unsure records:'
-	print 'Number of records:', len(user_input_df)
-	print 'Unique surprise ratings:', user_input_df['users_surp_ratings'].unique()
-	print 'Number of unique surprise ratings:', user_input_df['Recipe ID'].nunique()
-	# Divide the training-validation from the test-holdout by: users, recipes or random
-	msk = np.random.rand(len(user_input_df)) < 0.8
-	train_df = user_input_df[msk]
-	test_df = user_input_df[~msk]
-	# Remove user and recipe IDs
-	user_input_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
-	train_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
-	test_df.drop(['Recipe ID', 'User ID'], axis=1, inplace=True)
-	# Remove unwanted features; choose to drop any of the following:
-	# Lists of column names: users_fam_cols + users_cuisine_pref_cols + cuisine_knowledge_cols + cuisine_softmax_cols + \
-	# Individual column names:
-	# ['observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
-	#  'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
-	#  'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-	#  'users_surp_pref',
-	#  'recipe_familiarity', 'recipe_knowledge', 'recipe_preference', 'recipes_cuisine']
-	dropped_cols = ['recipes_cuisine']
-	user_input_df.drop(dropped_cols, axis=1, inplace=True)
-	train_df.drop(dropped_cols, axis=1, inplace=True)
-	test_df.drop(dropped_cols, axis=1, inplace=True)
-	print 'Current used features:', user_input_df.columns
-	# Get the target variable
-	target_var = user_input_df['users_surp_ratings']
-	train_target_var = train_df['users_surp_ratings']
-	test_target_var = test_df['users_surp_ratings']
-	# Choose the model's target scale (0->1, 1->5)
-	if algo_mode == 'RF_classifier':
-		target_var = target_var.values * 5
-		train_target_var = train_target_var.values * 5
-		test_target_var = test_target_var.values * 5
-	elif algo_mode == 'RF_regressor':
-		target_var = target_var.values * 5
-		train_target_var = train_target_var.values * 5
-		test_target_var = test_target_var.values * 5
-	elif algo_mode == 'neural':
-		target_var = target_var.values * 5
-		train_target_var = train_target_var.values * 5
-		test_target_var = test_target_var.values * 5
-	# Drop the target variable
-	user_input_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-	train_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-	test_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-	# Get predictor variables
-	predictive_var_arr = user_input_df.values.tolist()
-	train_predictive_var_arr = train_df.values.tolist()
-	test_predictive_var_arr = test_df.values.tolist()
-	# Convert the predictive and target variables into np arrays
-	predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
-	train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
-	test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
-	# print 'test_target_var', test_target_var
-	# Get number of used predictive variables
-	num_predictive_vars = np.shape(predictive_var_arr)[1]
-	print 'Number of predictive variables:', num_predictive_vars
+	print 'Number of records:', len(tmp_user_input_df)
+	print 'Unique surprise ratings:', tmp_user_input_df['users_surp_ratings'].unique()
+	print 'Number of unique surprise ratings:', tmp_user_input_df['Recipe ID'].nunique()
 	# Repeat the experiment num_exp times
+	# Get the user-recipe ID pair
+	tmp_user_input_df['user_recipe_pair'] = zip(tmp_user_input_df['User ID'], tmp_user_input_df['Recipe ID'])
+	user_recipe_ID_pair = np.array(tmp_user_input_df['user_recipe_pair'])
+	print 'Current used features:', tmp_user_input_df.columns
 	num_exp = 10
+	kf = KFold(n_splits=num_exp)
 	within_one_accuracy_perc_arr = []
-	for experiment_i in range(num_exp):
-		print 'experiment number:', experiment_i
+	for experiment_i, (experiment_train_idx, experiment_test_idx) in enumerate(kf.split(user_recipe_ID_pair)):
+		print 'Experiment number:', experiment_i
+		# Divide the training-validation from the test-holdout by: users, recipes or random
+		# But first refresh the user_input_df because of the column drops of the previous experiments
+		user_input_df = tmp_user_input_df.copy()
+		# Get the user-recipe combination index
+		train_user_recipe_ID_pair = user_recipe_ID_pair[experiment_train_idx]
+		test_user_recipe_ID_pair = user_recipe_ID_pair[experiment_test_idx]
+		# Get the DataFrames of train and test
+		train_df = user_input_df[user_input_df['user_recipe_pair'].isin(train_user_recipe_ID_pair)]
+		test_df = user_input_df[user_input_df['user_recipe_pair'].isin(test_user_recipe_ID_pair)]
+		# Remove user and recipe IDs
+		user_input_df.drop(['User ID', 'Recipe ID', 'user_recipe_pair', 'recipes_cuisine'], axis=1, inplace=True)
+		train_df.drop(['User ID', 'Recipe ID', 'user_recipe_pair', 'recipes_cuisine'], axis=1, inplace=True)
+		test_df.drop(['User ID', 'Recipe ID', 'user_recipe_pair', 'recipes_cuisine'], axis=1, inplace=True)
+		# Remove unwanted features; choose to drop any of the following:
+		# Lists of column names: users_fam_cols + users_cuisine_pref_cols + cuisine_knowledge_cols + cuisine_softmax_cols + \
+		# Individual column names:
+		# ['observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
+		#  'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
+		#  'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
+		#  'users_surp_pref',
+		#  'recipe_familiarity', 'recipe_knowledge', 'recipe_preference', 'recipes_cuisine']
+		dropped_cols = ['recipe_familiarity', 'recipe_knowledge', 'recipe_preference']
+		user_input_df.drop(dropped_cols, axis=1, inplace=True)
+		train_df.drop(dropped_cols, axis=1, inplace=True)
+		test_df.drop(dropped_cols, axis=1, inplace=True)
+		# Get the target variable
+		target_var = user_input_df['users_surp_ratings']
+		train_target_var = train_df['users_surp_ratings']
+		test_target_var = test_df['users_surp_ratings']
+		# Choose the model's target scale (0->1, 1->5)
+		if algo_mode == 'RF_classifier':
+			target_var = target_var.values * 5
+			train_target_var = train_target_var.values * 5
+			test_target_var = test_target_var.values * 5
+		elif algo_mode == 'RF_regressor':
+			target_var = target_var.values * 5
+			train_target_var = train_target_var.values * 5
+			test_target_var = test_target_var.values * 5
+		elif algo_mode == 'neural':
+			target_var = target_var.values * 5
+			train_target_var = train_target_var.values * 5
+			test_target_var = test_target_var.values * 5
+		# Drop the target variable
+		user_input_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+		train_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+		test_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+		# Get predictor variables
+		predictive_var_arr = user_input_df.values.tolist()
+		train_predictive_var_arr = train_df.values.tolist()
+		test_predictive_var_arr = test_df.values.tolist()
+		# Convert the predictive and target variables into np arrays
+		predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
+		train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
+		test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
+		# print 'test_target_var', test_target_var
+		# Get number of used predictive variables
+		num_predictive_vars = np.shape(predictive_var_arr)[1]
+		print 'Number of predictive variables:', num_predictive_vars
 		print 'Cross-validation:'
 		# Create a K fold separation
 		kf = KFold(n_splits=3, shuffle=True)
@@ -277,6 +284,9 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
+				user_recipe_predictions = {each_user_recipe: each_prediction
+					for each_user_recipe, each_prediction in zip(test_user_recipe_ID_pair, class_predictions_rounded)}
+				print 'user_recipe_predictions', user_recipe_predictions
 
 		elif algo_mode ==  'neural':
 			for each_predictor in predictors_dict:
