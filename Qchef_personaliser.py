@@ -279,8 +279,8 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
-				spearmanr_corr = spearmanr(test_target_var, class_predictions_rounded)
-				pearsonr_corr = pearsonr(test_target_var, class_predictions_rounded)
+				spearmanr_corr = spearmanr(test_target_var, class_predictions)
+				pearsonr_corr = pearsonr(test_target_var, class_predictions)
 				print 'pearsonr_corr', pearsonr_corr
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
@@ -311,8 +311,11 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
-				spearmanr_corr = spearmanr(test_target_var, holdout_test_pred_rounded)
-				pearsonr_corr = pearsonr(test_target_var, holdout_test_pred_rounded)
+				print 'holdout_test_pred_rounded', len(holdout_test_pred_rounded), holdout_test_pred_rounded
+				print holdout_test_pred_rounded.T
+				print 'test_target_var', len(test_target_var), test_target_var
+				spearmanr_corr = spearmanr(test_target_var, holdout_test_pred_rounded.T[0])
+				pearsonr_corr = pearsonr(test_target_var, holdout_test_pred_rounded.T[0])
 				print 'pearsonr_corr', pearsonr_corr
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
