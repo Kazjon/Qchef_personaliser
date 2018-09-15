@@ -128,8 +128,8 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_percentage, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_yset, test_pred_rounded, average='macro')
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
-	spearmanr_corr = spearmanr(test_target_var, test_pred_rounded.T[0])
-	pearsonr_corr = pearsonr(test_target_var, test_pred_rounded.T[0])
+	spearmanr_corr = spearmanr(test_target_var, test_pred.T[0])
+	pearsonr_corr = pearsonr(test_target_var, test_pred.T[0])
 	return within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
 def within_one_accuracy_fn(__confusion_matrix_arr__):
