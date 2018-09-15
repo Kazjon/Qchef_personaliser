@@ -1,12 +1,9 @@
-# ToDo: report the average accuracy and STD
-# ToDo: apply for NNW
-# ToDo: Compare between the models in terms of the accuracy and MSE
-	# ToDo: Try softmax layer with number of nodes == number of classes
-# ToDo: Test using different features
-# ToDo: Make switching between using the target variable scaled before or after training optinal through arguments
-# ToDo: Make switching between categorical and continuous for the NNW optinal through arguments
+# ToDo: Repeat experiments 3* for users 10* for recipes
+# ToDo: Add the recipe specific features
+# ToDo: Report the correlations
 
-import os, sys, math, random, statistics, numpy as np, pandas as pd
+import os, sys, statistics, numpy as np, pandas as pd
+from scipy.stats import pearsonr, spearmanr
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
@@ -74,7 +71,9 @@ def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	# print 'Using precision_recall_fscore_support:', model_recall_fscore
 	model_recall_fscore = precision_recall_fscore_support(test_raw_ys, test_pred_rounded, average='macro')
 	print 'Using rounded for precision_recall_fscore_support:', model_recall_fscore
-	return within_one_accuracy_percentage
+	spearmanr_corr = spearmanr(test_target_var, test_pred)
+	pearsonr_corr = pearsonr(test_target_var, test_pred)
+	return within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
 def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Initialize a sequential model
@@ -129,7 +128,9 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_percentage, '%'
 	model_recall_fscore = precision_recall_fscore_support(test_yset, test_pred_rounded, average='macro')
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
-	return within_one_accuracy_percentage
+	spearmanr_corr = spearmanr(test_target_var, test_pred_rounded.T[0])
+	pearsonr_corr = pearsonr(test_target_var, test_pred_rounded.T[0])
+	return within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
 def within_one_accuracy_fn(__confusion_matrix_arr__):
 	__within_one_accuracy__ = 0
@@ -186,6 +187,8 @@ if __name__ == '__main__':
 	# Initialize dict of predictors to store the predictors of each fold
 	predictors_dict = {}
 	within_one_accuracy_arr = []
+	spearmanr_arr = []
+	pearsonr_arr = []
 	# Split the training-validation by: users or recipes
 	if split_mode == 'user':
 		# Determine the column to use for splitting: user IDs
@@ -247,14 +250,31 @@ if __name__ == '__main__':
 		print 'Number of predictive variables:', num_predictive_vars
 		# Choose and build the model
 		if algo_mode == 'RF_regressor':
-			within_one_accuracy = RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+			within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+				RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
 			within_one_accuracy_arr.append(within_one_accuracy)
+			spearmanr_arr.append(spearmanr_corr)
+			pearsonr_arr.append(pearsonr_corr)
 		elif algo_mode == 'neural':
-			within_one_accuracy = neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+			within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+				neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
 			within_one_accuracy_arr.append(within_one_accuracy)
+			spearmanr_arr.append(spearmanr_corr)
+			pearsonr_arr.append(pearsonr_corr)
 		else:
 			print 'Sorry! No algorithm chosen!'
 			sys.exit()
 	avg_within_one_accuracy = reduce(lambda x, y: x + y, within_one_accuracy_arr) / len(within_one_accuracy_arr)
 	std_within_one_accuracy = statistics.stdev(within_one_accuracy_arr)
 	print 'Average of within one accuracy:', avg_within_one_accuracy, '%,', 'STD:', std_within_one_accuracy, '%'
+	# Calculate the average pearson and spearman correlations
+	# print 'spearmanr_arr', spearmanr_arr
+	print 'average spearmanr correlation', sum([each_corr[0] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
+	print 'std spearmanr correlation', statistics.stdev([each_corr[0] for each_corr in spearmanr_arr])
+	print 'average spearmanr p-value', sum([each_corr[1] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
+	print 'std spearmanr p-value', statistics.stdev([each_corr[1] for each_corr in spearmanr_arr])
+	# print 'pearsonr_arr', pearsonr_arr
+	print 'average pearsonr correlation', sum([each_corr[0] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
+	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
+	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
+	print 'std pearsonr p-value', statistics.stdev([each_corr[1] for each_corr in pearsonr_arr])
