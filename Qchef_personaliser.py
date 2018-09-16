@@ -189,6 +189,7 @@ if __name__ == '__main__':
 	within_one_accuracy_arr = []
 	spearmanr_arr = []
 	pearsonr_arr = []
+	num_exp = 0
 	# Split the training-validation by: users or recipes
 	if split_mode == 'user':
 		# Determine the column to use for splitting: user IDs
@@ -197,83 +198,93 @@ if __name__ == '__main__':
 		id_list = temp_user_input_df[col_name].unique()
 		# Split on 10% of the users to the average of 10 models
 		kf = KFold(n_splits=10, shuffle=True)
+		num_exp = 3
 	elif split_mode == 'recipe':
 		# Determine the column to use for splitting: recipe IDs
 		col_name = 'Recipe ID'
 		# Get the list o IDs
 		id_list = temp_user_input_df[col_name].unique()
 		# Split on 1 recipe to the test to get the average 16 models
-		kf = KFold(n_splits=16, shuffle=True)
-	# Iterate over the splits
-	for fold_idx, (train_ids, test_ids) in enumerate(kf.split(id_list)):
-		# train_ids are indecies of the IDs not the IDs themselves, so id_list[train_ids] for getting those IDs
-		temp_train_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[train_ids])]
-		temp_test_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[test_ids])]
-		# Remove user and recipe IDs and make a new separate DF without those IDs, because we want to use the IDs in the next iterations
-		user_input_df = temp_user_input_df.drop(['Recipe ID', 'User ID'], axis=1)
-		train_df = temp_train_df.drop(['Recipe ID', 'User ID'], axis=1)
-		test_df = temp_test_df.drop(['Recipe ID', 'User ID'], axis=1)
-		# Remove unwanted features; choose to drop any of the following:
-		# Lists of column names: users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
-		# Individual column names:
-		# 	'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
-		# 	'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
-		# 	'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
-		# 	'users_surp_pref'
-		dropped_cols = []
-		user_input_df.drop(dropped_cols, axis=1, inplace=True)
-		train_df.drop(dropped_cols, axis=1, inplace=True)
-		test_df.drop(dropped_cols, axis=1, inplace=True)
-		# print 'Current used features:', user_input_df.columns
-		# Get the target variable
-		target_var = user_input_df['users_surp_ratings']
-		train_target_var = train_df['users_surp_ratings']
-		test_target_var = test_df['users_surp_ratings']
-		# Scale the target values to ratings 1-5
-		target_var = target_var.values * 5
-		train_target_var = train_target_var.values * 5
-		test_target_var = test_target_var.values * 5
-		# Drop the target variable
-		user_input_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-		train_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-		test_df.drop(['users_surp_ratings'], axis=1, inplace=True)
-		# Get predictor variables
-		predictive_var_arr = user_input_df.values.tolist()
-		train_predictive_var_arr = train_df.values.tolist()
-		test_predictive_var_arr = test_df.values.tolist()
-		# Convert the predictive and target variables into np arrays
-		predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
-		train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
-		test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
-		# Get number of used predictive variables
-		num_predictive_vars = np.shape(predictive_var_arr)[1]
-		print 'Number of predictive variables:', num_predictive_vars
-		# Choose and build the model
-		if algo_mode == 'RF_regressor':
-			within_one_accuracy, spearmanr_corr, pearsonr_corr = \
-				RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
-			within_one_accuracy_arr.append(within_one_accuracy)
-			spearmanr_arr.append(spearmanr_corr)
-			pearsonr_arr.append(pearsonr_corr)
-		elif algo_mode == 'neural':
-			within_one_accuracy, spearmanr_corr, pearsonr_corr = \
-				neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
-			within_one_accuracy_arr.append(within_one_accuracy)
-			spearmanr_arr.append(spearmanr_corr)
-			pearsonr_arr.append(pearsonr_corr)
-		else:
-			print 'Sorry! No algorithm chosen!'
-			sys.exit()
+		kf = KFold(n_splits=16)
+		num_exp = 10
+	else:
+		print 'Sorry! No split mode chosen!'
+		sys.exit()
+	# Repeat the experiments according to the split mode
+	for experiment_i in range(num_exp):
+		print 'Experiment:', experiment_i
+		# Iterate over the splits
+		for fold_idx, (train_ids, test_ids) in enumerate(kf.split(id_list)):
+			# train_ids are indecies of the IDs not the IDs themselves, so id_list[train_ids] for getting those IDs
+			temp_train_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[train_ids])]
+			temp_test_df = temp_user_input_df[temp_user_input_df[col_name].isin(id_list[test_ids])]
+			# Remove user and recipe IDs and make a new separate DF without those IDs, because we want to use the IDs in the next iterations
+			user_input_df = temp_user_input_df.drop(['Recipe ID', 'User ID'], axis=1)
+			train_df = temp_train_df.drop(['Recipe ID', 'User ID'], axis=1)
+			test_df = temp_test_df.drop(['Recipe ID', 'User ID'], axis=1)
+			# Remove unwanted features; choose to drop any of the following:
+			# Lists of column names: users_fam_cols, users_cuisine_pref_cols, knowledge_ingredient_cols or cuisine_knowledge_cols, users_surp_pref_cols, cuisine_softmax_cols
+			# Individual column names:
+			# 	'observed_surp_estimates_90perc', 'observed_surp_estimates_95perc', 'observed_surp_estimates_max',
+			# 	'oracle_surp_estimates_90perc', 'oracle_surp_estimates_95perc', 'oracle_surp_estimates_max',
+			# 	'personalized_surp_estimates_90perc', 'personalized_surp_estimates_95perc', 'personalized_surp_estimates_max',
+			# 	'users_surp_pref'
+			dropped_cols = []
+			user_input_df.drop(dropped_cols, axis=1, inplace=True)
+			train_df.drop(dropped_cols, axis=1, inplace=True)
+			test_df.drop(dropped_cols, axis=1, inplace=True)
+			# print 'Current used features:', user_input_df.columns
+			# Get the target variable
+			target_var = user_input_df['users_surp_ratings']
+			train_target_var = train_df['users_surp_ratings']
+			test_target_var = test_df['users_surp_ratings']
+			# Scale the target values to ratings 1-5
+			target_var = target_var.values * 5
+			train_target_var = train_target_var.values * 5
+			test_target_var = test_target_var.values * 5
+			# Drop the target variable
+			user_input_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+			train_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+			test_df.drop(['users_surp_ratings'], axis=1, inplace=True)
+			# Get predictor variables
+			predictive_var_arr = user_input_df.values.tolist()
+			train_predictive_var_arr = train_df.values.tolist()
+			test_predictive_var_arr = test_df.values.tolist()
+			# Convert the predictive and target variables into np arrays
+			predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
+			train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
+			test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
+			# Get number of used predictive variables
+			num_predictive_vars = np.shape(predictive_var_arr)[1]
+			print 'Number of predictive variables:', num_predictive_vars
+			# Choose and build the model
+			if algo_mode == 'RF_regressor':
+				within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+					RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+				within_one_accuracy_arr.append(within_one_accuracy)
+				spearmanr_arr.append(spearmanr_corr)
+				pearsonr_arr.append(pearsonr_corr)
+			elif algo_mode == 'neural':
+				within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+					neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+				within_one_accuracy_arr.append(within_one_accuracy)
+				spearmanr_arr.append(spearmanr_corr)
+				pearsonr_arr.append(pearsonr_corr)
+			else:
+				print 'Sorry! No algorithm chosen!'
+				sys.exit()
+	# Calculate the average and STD accuracy
+	print 'within_one_accuracy_arr', len(within_one_accuracy_arr)
 	avg_within_one_accuracy = reduce(lambda x, y: x + y, within_one_accuracy_arr) / len(within_one_accuracy_arr)
 	std_within_one_accuracy = statistics.stdev(within_one_accuracy_arr)
 	print 'Average of within one accuracy:', avg_within_one_accuracy, '%,', 'STD:', std_within_one_accuracy, '%'
 	# Calculate the average pearson and spearman correlations
-	# print 'spearmanr_arr', spearmanr_arr
+	print 'spearmanr_arr', len(spearmanr_arr)
 	print 'average spearmanr correlation', sum([each_corr[0] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
 	print 'std spearmanr correlation', statistics.stdev([each_corr[0] for each_corr in spearmanr_arr])
 	print 'average spearmanr p-value', sum([each_corr[1] for each_corr in spearmanr_arr]) / float(len(spearmanr_arr))
 	print 'std spearmanr p-value', statistics.stdev([each_corr[1] for each_corr in spearmanr_arr])
-	# print 'pearsonr_arr', pearsonr_arr
+	print 'pearsonr_arr', len(pearsonr_arr)
 	print 'average pearsonr correlation', sum([each_corr[0] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
 	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
 	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
