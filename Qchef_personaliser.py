@@ -1,9 +1,8 @@
-# ToDo: Repeat experiments 3* for users 10* for recipes
 # ToDo: Add the recipe specific features
-# ToDo: Report the correlations
 
 import os, sys, statistics, numpy as np, pandas as pd
 from scipy.stats import pearsonr, spearmanr
+from collections import defaultdict
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, mean_squared_error, mean_absolute_error, precision_recall_fscore_support, confusion_matrix
@@ -189,6 +188,7 @@ if __name__ == '__main__':
 	within_one_accuracy_arr = []
 	spearmanr_arr = []
 	pearsonr_arr = []
+	recipe_individual_results_dict = defaultdict(list)
 	num_exp = 0
 	# Split the training-validation by: users or recipes
 	if split_mode == 'user':
@@ -273,6 +273,10 @@ if __name__ == '__main__':
 			else:
 				print 'Sorry! No algorithm chosen!'
 				sys.exit()
+			# Store the results for the tested recipe
+			if split_mode == 'recipe':
+				test_recipe_id = id_list[test_ids][0]
+				recipe_individual_results_dict[test_recipe_id].append((within_one_accuracy, spearmanr_corr, pearsonr_corr))
 	# Calculate the average and STD accuracy
 	print 'within_one_accuracy_arr', len(within_one_accuracy_arr)
 	avg_within_one_accuracy = reduce(lambda x, y: x + y, within_one_accuracy_arr) / len(within_one_accuracy_arr)
@@ -289,3 +293,48 @@ if __name__ == '__main__':
 	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
 	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
 	print 'std pearsonr p-value', statistics.stdev([each_corr[1] for each_corr in pearsonr_arr])
+	print 'recipe_individual_results_dict', recipe_individual_results_dict
+	recipe_within_one_accuracy_dict = {}
+	recipe_spearmanr_corr_dict = {}
+	recipe_pearsonr_corr_dict = {}
+	for each_recipe in recipe_individual_results_dict:
+		# recipe_within_one_accuracy
+		recipe_within_one_accuracy_arr = [each_experiment[0] for each_experiment in recipe_individual_results_dict[each_recipe]]
+		recipe_avg_within_one_accuracy = reduce(lambda x, y: x + y, recipe_within_one_accuracy_arr) / len(recipe_within_one_accuracy_arr)
+		recipe_std_within_one_accuracy = statistics.stdev(recipe_within_one_accuracy_arr)
+		recipe_within_one_accuracy_dict[each_recipe] = (recipe_avg_within_one_accuracy, recipe_std_within_one_accuracy)
+		# spearmanr_corr
+		recipe_spearmanr_corr_arr = [each_experiment[1][0] for each_experiment in recipe_individual_results_dict[each_recipe]]
+		recipe_avg_spearmanr_corr = reduce(lambda x, y: x + y, recipe_spearmanr_corr_arr) / len(recipe_spearmanr_corr_arr)
+		recipe_std_spearmanr_corr = statistics.stdev(recipe_spearmanr_corr_arr)
+		# spearmanr_pvalue
+		recipe_spearmanr_pvalue_arr = [each_experiment[1][1] for each_experiment in recipe_individual_results_dict[each_recipe]]
+		recipe_avg_spearmanr_pvalue = reduce(lambda x, y: x + y, recipe_spearmanr_pvalue_arr) / len(recipe_spearmanr_pvalue_arr)
+		recipe_std_spearmanr_pvalue = statistics.stdev(recipe_spearmanr_pvalue_arr)
+		recipe_spearmanr_corr_dict[each_recipe] = (recipe_avg_spearmanr_corr, recipe_std_spearmanr_corr,
+												   recipe_avg_spearmanr_pvalue, recipe_std_spearmanr_pvalue)
+		# spearmanr_corr
+		recipe_pearsonr_corr_arr = [each_experiment[2][0] for each_experiment in recipe_individual_results_dict[each_recipe]]
+		recipe_avg_pearsonr_corr = reduce(lambda x, y: x + y, recipe_pearsonr_corr_arr) / len(recipe_pearsonr_corr_arr)
+		recipe_std_pearsonr_corr = statistics.stdev(recipe_pearsonr_corr_arr)
+		# pearsonr_pvalue
+		recipe_pearsonr_pvalue_arr = [each_experiment[2][1] for each_experiment in recipe_individual_results_dict[each_recipe]]
+		recipe_avg_pearsonr_pvalue = reduce(lambda x, y: x + y, recipe_pearsonr_pvalue_arr) / len(recipe_pearsonr_pvalue_arr)
+		recipe_std_pearsonr_pvalue = statistics.stdev(recipe_pearsonr_pvalue_arr)
+		recipe_pearsonr_corr_dict[each_recipe] = (recipe_avg_pearsonr_corr, recipe_std_pearsonr_corr,
+												  recipe_avg_pearsonr_pvalue, recipe_std_pearsonr_pvalue)
+	# Store recipe_within_one_accuracy results
+	recipe_within_one_accuracy_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_within_one_accuracy.csv'
+	# Recipe index, Average within one accuracy, STD within one accuracy
+	recipe_within_one_accuracy_df = pd.DataFrame.from_dict(recipe_within_one_accuracy_dict, orient='index')
+	recipe_within_one_accuracy_df.to_csv(recipe_within_one_accuracy_fn)
+	# Store recipe_spearmanr_corr results
+	recipe_spearmanr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_spearmanr_corr.csv'
+	# Recipe index, Average spearmanr correlation, STD spearmanr correlation, Average p-value, STD p-value
+	recipe_spearmanr_corr_df = pd.DataFrame.from_dict(recipe_spearmanr_corr_dict, orient='index')
+	recipe_spearmanr_corr_df.to_csv(recipe_spearmanr_corr_fn)
+	# Store recipe_pearsonr_corr results
+	recipe_pearsonr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_pearsonr_corr.csv'
+	# Recipe index, Average pearsonr correlation, STD pearsonr correlation, Average p-value, STD p-value
+	recipe_pearsonr_corr_df = pd.DataFrame.from_dict(recipe_pearsonr_corr_dict, orient='index')
+	recipe_pearsonr_corr_df.to_csv(recipe_pearsonr_corr_fn)
