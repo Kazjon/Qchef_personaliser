@@ -293,7 +293,7 @@ if __name__ == '__main__':
 	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
 	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
 	print 'std pearsonr p-value', statistics.stdev([each_corr[1] for each_corr in pearsonr_arr])
-	print 'recipe_individual_results_dict', recipe_individual_results_dict
+	# Organize and store the per recipe results in CSV files
 	recipe_within_one_accuracy_dict = {}
 	recipe_spearmanr_corr_dict = {}
 	recipe_pearsonr_corr_dict = {}
@@ -325,16 +325,19 @@ if __name__ == '__main__':
 												  recipe_avg_pearsonr_pvalue, recipe_std_pearsonr_pvalue)
 	# Store recipe_within_one_accuracy results
 	recipe_within_one_accuracy_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_within_one_accuracy.csv'
-	# Recipe index, Average within one accuracy, STD within one accuracy
 	recipe_within_one_accuracy_df = pd.DataFrame.from_dict(recipe_within_one_accuracy_dict, orient='index')
+	recipe_within_one_accuracy_df.index.name = 'Recipe index'
+	recipe_within_one_accuracy_df.columns = ['Recipe index', 'Average within one accuracy', 'STD within one accuracy']
 	recipe_within_one_accuracy_df.to_csv(recipe_within_one_accuracy_fn)
 	# Store recipe_spearmanr_corr results
 	recipe_spearmanr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_spearmanr_corr.csv'
-	# Recipe index, Average spearmanr correlation, STD spearmanr correlation, Average p-value, STD p-value
 	recipe_spearmanr_corr_df = pd.DataFrame.from_dict(recipe_spearmanr_corr_dict, orient='index')
+	recipe_spearmanr_corr_df.index.name = 'Recipe index'
+	recipe_spearmanr_corr_df.columns = ['Recipe index', 'Average spearmanr correlation', 'STD spearmanr correlation', 'Average p-value', 'STD p-value']
 	recipe_spearmanr_corr_df.to_csv(recipe_spearmanr_corr_fn)
 	# Store recipe_pearsonr_corr results
 	recipe_pearsonr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_pearsonr_corr.csv'
-	# Recipe index, Average pearsonr correlation, STD pearsonr correlation, Average p-value, STD p-value
 	recipe_pearsonr_corr_df = pd.DataFrame.from_dict(recipe_pearsonr_corr_dict, orient='index')
+	recipe_pearsonr_corr_df.index.name = 'Recipe index'
+	recipe_pearsonr_corr_df.columns = ['Recipe index', 'Average pearsonr correlation', 'STD pearsonr correlation', 'Average p-value', 'STD p-value']
 	recipe_pearsonr_corr_df.to_csv(recipe_pearsonr_corr_fn)
