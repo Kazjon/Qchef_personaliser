@@ -327,17 +327,17 @@ if __name__ == '__main__':
 	recipe_within_one_accuracy_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_within_one_accuracy.csv'
 	recipe_within_one_accuracy_df = pd.DataFrame.from_dict(recipe_within_one_accuracy_dict, orient='index')
 	recipe_within_one_accuracy_df.index.name = 'Recipe index'
-	recipe_within_one_accuracy_df.columns = ['Recipe index', 'Average within one accuracy', 'STD within one accuracy']
+	recipe_within_one_accuracy_df.columns = ['Average within one accuracy', 'STD within one accuracy']
 	recipe_within_one_accuracy_df.to_csv(recipe_within_one_accuracy_fn)
 	# Store recipe_spearmanr_corr results
 	recipe_spearmanr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_spearmanr_corr.csv'
 	recipe_spearmanr_corr_df = pd.DataFrame.from_dict(recipe_spearmanr_corr_dict, orient='index')
 	recipe_spearmanr_corr_df.index.name = 'Recipe index'
-	recipe_spearmanr_corr_df.columns = ['Recipe index', 'Average spearmanr correlation', 'STD spearmanr correlation', 'Average p-value', 'STD p-value']
+	recipe_spearmanr_corr_df.columns = ['Average spearmanr correlation', 'STD spearmanr correlation', 'Average p-value', 'STD p-value']
 	recipe_spearmanr_corr_df.to_csv(recipe_spearmanr_corr_fn)
 	# Store recipe_pearsonr_corr results
 	recipe_pearsonr_corr_fn = cwd + '/Qchef_personaliser/results/generalizability/recipe_pearsonr_corr.csv'
 	recipe_pearsonr_corr_df = pd.DataFrame.from_dict(recipe_pearsonr_corr_dict, orient='index')
 	recipe_pearsonr_corr_df.index.name = 'Recipe index'
-	recipe_pearsonr_corr_df.columns = ['Recipe index', 'Average pearsonr correlation', 'STD pearsonr correlation', 'Average p-value', 'STD p-value']
+	recipe_pearsonr_corr_df.columns = ['Average pearsonr correlation', 'STD pearsonr correlation', 'Average p-value', 'STD p-value']
 	recipe_pearsonr_corr_df.to_csv(recipe_pearsonr_corr_fn)
