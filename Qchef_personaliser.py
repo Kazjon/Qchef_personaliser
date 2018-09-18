@@ -179,6 +179,8 @@ if __name__ == '__main__':
 	print 'Current used features:', tmp_user_input_df.columns
 	num_exp = 10
 	kf = KFold(n_splits=num_exp)
+	mse_arr = []
+	exact_accuracy_arr = []
 	within_one_accuracy_perc_arr = []
 	spearmanr_arr = []
 	pearsonr_arr = []
@@ -266,9 +268,14 @@ if __name__ == '__main__':
 				print 'class_predictions_rounded', class_predictions_rounded
 				# Calculate accuracy
 				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, class_predictions_rounded, normalize=False), accuracy_score(test_target_var, class_predictions_rounded)
-				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy_perc = holdout_model_accuracy / float(len(test_target_var)) * 100
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%', holdout_model_accuracy_perc
+				# Store exact accuracy
+				exact_accuracy_arr.append(holdout_model_accuracy_perc)
 				holdout_model_accuracy = mean_squared_error(test_target_var, class_predictions)
 				print 'Models mean_squared_error:', holdout_model_accuracy
+				# Store the MSE
+				mse_arr.append(holdout_model_accuracy)
 				holdout_model_accuracy = mean_absolute_error(test_target_var, class_predictions)
 				print 'Models mean_absolute_error:', holdout_model_accuracy
 				holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, class_predictions_rounded, average='macro')
@@ -296,9 +303,14 @@ if __name__ == '__main__':
 				holdout_test_pred_rounded = np.around(holdout_test_pred)
 				# print 'rounding the predictions:', set(holdout_test_pred_rounded.flat), holdout_test_pred_rounded
 				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, holdout_test_pred_rounded, normalize=False), accuracy_score(test_target_var, holdout_test_pred_rounded)
-				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy_perc = holdout_model_accuracy / float(len(test_target_var)) * 100
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%', holdout_model_accuracy_perc
+				# Store exact accuracy
+				exact_accuracy_arr.append(holdout_model_accuracy_perc)
 				holdout_model_accuracy = mean_squared_error(test_target_var, holdout_test_pred)
 				print 'Models mean_squared_error:', holdout_model_accuracy
+				# Store the MSE
+				mse_arr.append(holdout_model_accuracy)
 				holdout_model_accuracy = mean_absolute_error(test_target_var, holdout_test_pred)
 				print 'Models mean_absolute_error:', holdout_model_accuracy
 				keras_holdout_model_accuracy = keras_mean_squared_error(test_target_var, holdout_test_pred)
@@ -341,9 +353,14 @@ if __name__ == '__main__':
 				# print 'final_class_predictions', len(final_class_predictions), final_class_predictions
 				# Calculate accuracy
 				holdout_model_accuracy, holdout_model_accuracy_norm = accuracy_score(test_target_var, final_class_predictions, normalize=False), accuracy_score(test_target_var, final_class_predictions)
-				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%'
+				holdout_model_accuracy_perc = holdout_model_accuracy / float(len(test_target_var)) * 100
+				print 'Using accuracy_score:', holdout_model_accuracy, holdout_model_accuracy_norm * 100, '%', holdout_model_accuracy_perc
+				# Store exact accuracy
+				exact_accuracy_arr.append(holdout_model_accuracy_perc)
 				holdout_model_accuracy = mean_squared_error(test_target_var, final_class_predictions)
 				print 'Models mean_squared_error:', holdout_model_accuracy
+				# Store the MSE
+				mse_arr.append(holdout_model_accuracy)
 				holdout_model_accuracy = mean_absolute_error(test_target_var, final_class_predictions)
 				print 'Models mean_absolute_error:', holdout_model_accuracy
 				holdout_model_recall_fscore = precision_recall_fscore_support(test_target_var, final_class_predictions, average='macro')
@@ -354,7 +371,17 @@ if __name__ == '__main__':
 				within_one_accuracy_perc = within_one_accuracy / float(len(test_target_var)) * 100
 				print 'within_one_accuracy', within_one_accuracy, within_one_accuracy_perc, '%'
 				within_one_accuracy_perc_arr.append(within_one_accuracy_perc)
-	# Calculate the percentage average and standard deviation of the accuracies
+	# Calculate the percentage average and standard deviation of the MSE
+	mse_avg = sum(mse_arr) / float(len(mse_arr))
+	mse_stdev = statistics.stdev(mse_arr)
+	print 'MSE average and STD:'
+	print mse_avg, mse_stdev
+	# Calculate the percentage average and standard deviation of the exact accuracies
+	exact_accuracy_avg = sum(exact_accuracy_arr) / float(len(exact_accuracy_arr))
+	exact_accuracy_stdev = statistics.stdev(exact_accuracy_arr)
+	print 'Exact accuracy average and STD:'
+	print exact_accuracy_avg, exact_accuracy_stdev
+	# Calculate the percentage average and standard deviation of the within-one-accuracies
 	within_one_accuracy_perc_avg = sum(within_one_accuracy_perc_arr) / float(len(within_one_accuracy_perc_arr))
 	within_one_accuracy_stdev = statistics.stdev(within_one_accuracy_perc_arr)
 	print 'Within-one-accuracy average and STD:'
