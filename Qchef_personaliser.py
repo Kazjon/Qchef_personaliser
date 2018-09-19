@@ -57,6 +57,7 @@ def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	# print 'rounding the predictions:', len(test_pred_rounded), set(test_pred_rounded), test_pred_rounded
 	model_accuracy, model_accuracy_norm = accuracy_score(test_raw_ys, test_pred_rounded, normalize=False), accuracy_score(test_raw_ys, test_pred_rounded)
 	print 'Using rounded for accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+	model_accuracy_percentage = model_accuracy / float(len(test_raw_ys))
 	holdout_model_accuracy = mean_squared_error(test_raw_ys, test_pred)
 	print 'Models mean_squared_error:', holdout_model_accuracy
 	holdout_model_accuracy = mean_absolute_error(test_raw_ys, test_pred)
@@ -72,7 +73,7 @@ def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	print 'Using rounded for precision_recall_fscore_support:', model_recall_fscore
 	spearmanr_corr = spearmanr(test_target_var, test_pred)
 	pearsonr_corr = pearsonr(test_target_var, test_pred)
-	return within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
+	return holdout_model_accuracy, model_accuracy_percentage, within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
 def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	# Initialize a sequential model
@@ -112,6 +113,7 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'test_yset', test_yset
 	model_accuracy, model_accuracy_norm = accuracy_score(test_yset, test_pred_rounded, normalize=False), accuracy_score(test_yset, test_pred_rounded)
 	print 'Using accuracy_score:', model_accuracy, model_accuracy_norm * 100, '%'
+	model_accuracy_percentage = model_accuracy / float(len(test_yset)) * 100
 	holdout_model_accuracy = mean_squared_error(test_yset, test_pred)
 	print 'Models mean_squared_error:', holdout_model_accuracy
 	holdout_model_accuracy = mean_absolute_error(test_yset, test_pred)
@@ -129,7 +131,7 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	spearmanr_corr = spearmanr(test_target_var, test_pred.T[0])
 	pearsonr_corr = pearsonr(test_target_var, test_pred.T[0])
-	return within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
+	return holdout_model_accuracy, model_accuracy_percentage, within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
 def within_one_accuracy_fn(__confusion_matrix_arr__):
 	__within_one_accuracy__ = 0
@@ -186,6 +188,8 @@ if __name__ == '__main__':
 	id_list, kf, col_name, train_df, test_df = [], KFold(), '', pd.DataFrame(), pd.DataFrame()
 	# Initialize dict of predictors to store the predictors of each fold
 	predictors_dict = {}
+	mse_arr =[]
+	exact_accuracy_arr = []
 	within_one_accuracy_arr = []
 	spearmanr_arr = []
 	pearsonr_arr = []
@@ -260,14 +264,18 @@ if __name__ == '__main__':
 			print 'Number of predictive variables:', num_predictive_vars
 			# Choose and build the model
 			if algo_mode == 'RF_regressor':
-				within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+				mse_value, exact_accuracy, within_one_accuracy, spearmanr_corr, pearsonr_corr = \
 					RF_regressor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+				mse_arr.append(mse_value)
+				exact_accuracy_arr.append(exact_accuracy)
 				within_one_accuracy_arr.append(within_one_accuracy)
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
 			elif algo_mode == 'neural':
-				within_one_accuracy, spearmanr_corr, pearsonr_corr = \
+				mse_value, exact_accuracy, within_one_accuracy, spearmanr_corr, pearsonr_corr = \
 					neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+				mse_arr.append(mse_value)
+				exact_accuracy_arr.append(exact_accuracy)
 				within_one_accuracy_arr.append(within_one_accuracy)
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
@@ -278,7 +286,15 @@ if __name__ == '__main__':
 			if split_mode == 'recipe':
 				test_recipe_id = id_list[test_ids][0]
 				recipe_individual_results_dict[test_recipe_id].append((within_one_accuracy, spearmanr_corr, pearsonr_corr))
-	# Calculate the average and STD accuracy
+	# Calculate the average and STD of MSE's
+	avg_mse = reduce(lambda x, y: x + y, mse_arr) / len(mse_arr)
+	std_mse = statistics.stdev(mse_arr)
+	print 'Average of MSE:', avg_mse, '%,', 'STD:', std_mse, '%'
+	# Calculate the average and STD of exact accuracy
+	avg_exact_accuracy = reduce(lambda x, y: x + y, exact_accuracy_arr) / len(exact_accuracy_arr)
+	std_exact_accuracy = statistics.stdev(exact_accuracy_arr)
+	print 'Average of exact accuracy:', avg_exact_accuracy, '%,', 'STD:', std_exact_accuracy, '%'
+	# Calculate the average and STD of within-one-accuracy
 	print 'within_one_accuracy_arr', len(within_one_accuracy_arr)
 	avg_within_one_accuracy = reduce(lambda x, y: x + y, within_one_accuracy_arr) / len(within_one_accuracy_arr)
 	std_within_one_accuracy = statistics.stdev(within_one_accuracy_arr)
