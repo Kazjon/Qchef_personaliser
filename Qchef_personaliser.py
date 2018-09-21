@@ -75,7 +75,7 @@ def RF_regressor(train_xset, train_raw_ys, test_xset, test_raw_ys):
 	pearsonr_corr = pearsonr(test_target_var, test_pred)
 	return holdout_model_accuracy, model_accuracy_percentage, within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
 
-def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
+def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset, test_high_surprise_target):
 	# Initialize a sequential model
 	model = Sequential()
 	# Create a Relu layer with the number of predictive variables
@@ -131,7 +131,11 @@ def neuralRatingPredictor(train_xset, train_yset, test_xset, test_yset):
 	print 'Using precision_recall_fscore_support:', model_recall_fscore
 	spearmanr_corr = spearmanr(test_target_var, test_pred.T[0])
 	pearsonr_corr = pearsonr(test_target_var, test_pred.T[0])
-	return holdout_model_accuracy, model_accuracy_percentage, within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr
+	# High surprise predictions
+	high_surprise_pred = model.predict(test_high_surprise_var_arr)
+	high_surprise_pred_rounded = np.around(high_surprise_pred)
+	high_surprise_accuracy = accuracy_score(test_high_surprise_target, high_surprise_pred_rounded)
+	return holdout_model_accuracy, model_accuracy_percentage, within_one_accuracy_percentage, spearmanr_corr, pearsonr_corr, high_surprise_accuracy
 
 def within_one_accuracy_fn(__confusion_matrix_arr__):
 	__within_one_accuracy__ = 0
@@ -195,6 +199,7 @@ if __name__ == '__main__':
 	mse_arr =[]
 	exact_accuracy_arr = []
 	within_one_accuracy_arr = []
+	high_surprise_accuracy_arr = []
 	spearmanr_arr = []
 	pearsonr_arr = []
 	recipe_individual_results_dict = defaultdict(list)
@@ -263,6 +268,9 @@ if __name__ == '__main__':
 			predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
 			train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
 			test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
+			high_surprise_indices = np.where(test_target_var > 3)
+			test_high_surprise_var_arr = test_predictive_var_arr[high_surprise_indices]
+			test_high_surprise_target_var = test_target_var[high_surprise_indices]
 			# Get number of used predictive variables
 			num_predictive_vars = np.shape(predictive_var_arr)[1]
 			print 'Number of predictive variables:', num_predictive_vars
@@ -276,13 +284,14 @@ if __name__ == '__main__':
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
 			elif algo_mode == 'neural':
-				mse_value, exact_accuracy, within_one_accuracy, spearmanr_corr, pearsonr_corr = \
-					neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var)
+				mse_value, exact_accuracy, within_one_accuracy, spearmanr_corr, pearsonr_corr, high_surprise_accuracy = \
+					neuralRatingPredictor(train_predictive_var_arr, train_target_var, test_predictive_var_arr, test_target_var, test_high_surprise_target_var)
 				mse_arr.append(mse_value)
 				exact_accuracy_arr.append(exact_accuracy)
 				within_one_accuracy_arr.append(within_one_accuracy)
 				spearmanr_arr.append(spearmanr_corr)
 				pearsonr_arr.append(pearsonr_corr)
+				high_surprise_accuracy_arr.append(high_surprise_accuracy)
 			else:
 				print 'Sorry! No algorithm chosen!'
 				sys.exit()
@@ -312,6 +321,11 @@ if __name__ == '__main__':
 	print 'std pearsonr correlation', statistics.stdev([each_corr[0] for each_corr in pearsonr_arr])
 	print 'average pearsonr p-value', sum([each_corr[1] for each_corr in pearsonr_arr]) / float(len(pearsonr_arr))
 	print 'std pearsonr p-value', statistics.stdev([each_corr[1] for each_corr in pearsonr_arr])
+	# Calculate the percentage average and standard deviation of the exact accuracies for high surprise
+	high_surprise_accuracy_avg = sum(high_surprise_accuracy_arr) / float(len(high_surprise_accuracy_arr))
+	high_surprise_accuracy_stdev = statistics.stdev(high_surprise_accuracy_arr)
+	print 'High surprise accuracy average and STD:'
+	print high_surprise_accuracy_avg, high_surprise_accuracy_stdev
 	# Organize and store the per recipe results in CSV files
 	if split_mode == 'recipe':
 		recipe_within_one_accuracy_dict = {}
