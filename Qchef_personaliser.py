@@ -184,6 +184,10 @@ if __name__ == '__main__':
 	print 'Number of records:', len(temp_user_input_df)
 	print 'Unique surprise ratings:', temp_user_input_df['users_surp_ratings'].unique()
 	print 'Number of unique surprise ratings:', temp_user_input_df['Recipe ID'].nunique()
+	num_sure_recipes_per_user_list = list(temp_user_input_df.groupby(['User ID'])['Recipe ID'].count())
+	print 'Mean number of recipes per user:', statistics.mean(num_sure_recipes_per_user_list)
+	print 'Median number of recipes per user:', statistics.median(num_sure_recipes_per_user_list)
+	print 'Distribution of the surprise ratings:', temp_user_input_df['users_surp_ratings'].value_counts()
 	# Initialize ID list, KFold column name and DataFrames
 	id_list, kf, col_name, train_df, test_df = [], KFold(), '', pd.DataFrame(), pd.DataFrame()
 	# Initialize dict of predictors to store the predictors of each fold
