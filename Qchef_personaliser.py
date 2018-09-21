@@ -268,7 +268,7 @@ if __name__ == '__main__':
 			predictive_var_arr, target_var = np.array(predictive_var_arr), np.array(target_var)
 			train_predictive_var_arr, train_target_var = np.array(train_predictive_var_arr), np.array(train_target_var)
 			test_predictive_var_arr, test_target_var = np.array(test_predictive_var_arr), np.array(test_target_var)
-			high_surprise_indices = np.where(test_target_var > 3)
+			high_surprise_indices = np.where(test_target_var > 2)
 			test_high_surprise_var_arr = test_predictive_var_arr[high_surprise_indices]
 			test_high_surprise_target_var = test_target_var[high_surprise_indices]
 			# Get number of used predictive variables
